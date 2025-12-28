@@ -6,12 +6,16 @@
     <title>الخريطة الإدارية - مركز ومدينة المنزلة (مطور)</title>
     
     <script type="module">
+        // استيراد المكتبات عبر CDN لتعمل داخل المتصفح مباشرة
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
-        import { getFirestore, collection, doc, setDoc, getDoc, updateDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-analytics.js";
+        import { getFirestore, collection, doc, setDoc, getDoc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
         
+        // إعدادات Firebase الخاصة بك
         const firebaseConfig = {
             apiKey: "AIzaSyDqwVpiB_jrnWek_Pemns7hI7aUgMQOHas",
             authDomain: "twap-59d3e.firebaseapp.com",
+            databaseURL: "https://twap-59d3e-default-rtdb.firebaseio.com",
             projectId: "twap-59d3e",
             storageBucket: "twap-59d3e.firebasestorage.app",
             messagingSenderId: "193674884546",
@@ -19,17 +23,19 @@
             measurementId: "G-WX3X03B2KV"
         };
 
+        // تهيئة Firebase
         const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
+        const analytics = getAnalytics(app); // تفعيل Analytics
+        const db = getFirestore(app);      // تفعيل قاعدة البيانات Firestore
         
+        // ربط الدوال بالنافذة (Window) لاستخدامها في باقي الكود
         window.db = db;
         window.doc = doc;
         window.setDoc = setDoc;
         window.getDoc = getDoc;
-        window.updateDoc = updateDoc;
         window.deleteDoc = deleteDoc;
-        window.onSnapshot = onSnapshot;
-        window.collection = collection;
+        
+        console.log("Firebase Initialized with Analytics");
     </script>
     
     <style>
@@ -78,7 +84,7 @@
         .delete-btn { background: var(--danger-color); color: white; }
         .add-btn { background-color: var(--success-color); color: white; border: none; border-radius: 50%; width: 35px; height: 35px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 
-        /* --- NEW TABS STYLES --- */
+        /* --- TABS STYLES --- */
         .tabs { display: flex; margin-bottom: 20px; border-bottom: 2px solid #ddd; overflow-x: auto; }
         .tab-btn { padding: 10px 15px; background: none; border: none; cursor: pointer; font-size: 0.95rem; font-weight: bold; color: #666; border-bottom: 3px solid transparent; transition: all 0.3s; white-space: nowrap; }
         .tab-btn:hover { color: var(--secondary-color); background-color: #f5f9ff; }
@@ -86,7 +92,7 @@
         .tab-content { display: none; animation: fadeIn 0.3s ease-out; }
         .tab-content.active { display: block; }
         
-        /* --- NEW FORM STYLES --- */
+        /* --- FORM STYLES --- */
         .data-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
         .form-group { margin-bottom: 15px; }
         .form-group label, .detail-item label { display: block; margin-bottom: 5px; color: var(--primary-color); font-weight: bold; font-size: 0.9rem; }
