@@ -8,7 +8,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
         import { getAnalytics } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-analytics.js";
-        import { getFirestore, collection, doc, setDoc, getDoc, updateDoc, deleteDoc, onSnapshot, getDocs } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+        import { getDatabase, ref, set, get, remove, update, child } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
         
         const firebaseConfig = {
             apiKey: "AIzaSyDqwVpiB_jrnWek_Pemns7hI7aUgMQOHas",
@@ -23,20 +23,18 @@
 
         const app = initializeApp(firebaseConfig);
         const analytics = getAnalytics(app);
-        const db = getFirestore(app);
+        const database = getDatabase(app);
         
         // Make Firebase functions globally available
-        window.firebaseDB = db;
-        window.firebaseDoc = doc;
-        window.firebaseSetDoc = setDoc;
-        window.firebaseGetDoc = getDoc;
-        window.firebaseUpdateDoc = updateDoc;
-        window.firebaseDeleteDoc = deleteDoc;
-        window.firebaseOnSnapshot = onSnapshot;
-        window.firebaseGetDocs = getDocs;
-        window.firebaseCollection = collection;
+        window.firebaseDB = database;
+        window.firebaseRef = ref;
+        window.firebaseSet = set;
+        window.firebaseGet = get;
+        window.firebaseRemove = remove;
+        window.firebaseUpdate = update;
+        window.firebaseChild = child;
         
-        console.log("Firebase Initialized Successfully");
+        console.log("Firebase Realtime Database Initialized Successfully");
     </script>
     
     <style>
@@ -526,93 +524,7 @@
             z-index: 1;
         }
         
-        /* ============ TABS SYSTEM ============ */
-        .tabs {
-            display: flex;
-            margin-bottom: 25px;
-            border-bottom: 2px solid #e2e8f0;
-            overflow-x: auto;
-            gap: 5px;
-        }
-        
-        .tab-btn {
-            padding: 12px 20px;
-            background: none;
-            border: none;
-            cursor: pointer;
-            font-size: 1rem;
-            font-weight: 600;
-            color: #64748b;
-            border-bottom: 3px solid transparent;
-            transition: all 0.3s;
-            white-space: nowrap;
-            position: relative;
-        }
-        
-        .tab-btn::after {
-            content: '';
-            position: absolute;
-            bottom: -2px;
-            left: 50%;
-            width: 0;
-            height: 3px;
-            background: var(--secondary-color);
-            transform: translateX(-50%);
-            transition: width 0.3s;
-        }
-        
-        .tab-btn:hover {
-            color: var(--secondary-color);
-            background-color: #f1f5f9;
-        }
-        
-        .tab-btn:hover::after {
-            width: 100%;
-        }
-        
-        .tab-btn.active {
-            color: var(--secondary-color);
-            border-bottom-color: var(--secondary-color);
-        }
-        
-        .tab-btn.active::after {
-            width: 100%;
-        }
-        
-        .tab-content {
-            display: none;
-            animation: tabFadeIn 0.4s ease-out;
-        }
-        
-        .tab-content.active {
-            display: block;
-        }
-        
-        @keyframes tabFadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-        
         /* ============ FORM ELEMENTS ============ */
-        .data-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin-bottom: 20px;
-        }
-        
-        @media (max-width: 600px) {
-            .data-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-        
         .form-group {
             margin-bottom: 20px;
             animation: formFieldSlide 0.4s ease-out backwards;
@@ -826,7 +738,7 @@
             content: '\f05a';
         }
         
-        /* ============ PRESENTATION MODE (PowerPoint Style) ============ */
+        /* ============ PRESENTATION MODE ============ */
         .presentation-mode {
             position: fixed;
             top: 0;
@@ -1075,7 +987,7 @@
     <div class="app-container">
         <header>
             <h1>🗺️ الخريطة الإدارية التفاعلية</h1>
-            <div class="subtitle">مركز ومدينة المنزلة - قاعدة بيانات شاملة</div>
+            <div class="subtitle">مركز ومدينة المنزلة - قاعدة بيانات شاملة (Realtime Database)</div>
         </header>
         
         <div class="controls">
@@ -1378,75 +1290,106 @@
             });
         });
         
-        // ==================== FIREBASE OPERATIONS ====================
+        // ==================== FIREBASE REALTIME DATABASE OPERATIONS ====================
         async function loadFromFirebase() {
             try {
-                const areasSnapshot = await window.firebaseGetDocs(window.firebaseCollection(window.firebaseDB, "areas"));
-                if (!areasSnapshot.empty) {
-                    areasData = [];
-                    areasSnapshot.forEach(docSnap => {
-                        areasData.push({ id: docSnap.id, ...docSnap.data() });
-                    });
+                console.log("🔄 بدء تحميل البيانات من Realtime Database...");
+                
+                const areasRef = window.firebaseRef(window.firebaseDB, 'areas');
+                const snapshot = await window.firebaseGet(areasRef);
+                
+                if (snapshot.exists()) {
+                    const data = snapshot.val();
+                    areasData = Object.keys(data).map(key => ({
+                        id: key,
+                        ...data[key]
+                    }));
+                    console.log("✅ تم تحميل", areasData.length, "منطقة");
                 } else {
+                    console.log("⚠️ لا توجد بيانات - قاعدة البيانات فارغة");
                     areasData = [];
                 }
+                
                 renderMainAreas();
                 soundEffects.success();
-                showNotification('تم تحميل البيانات من السحابة', 'success');
+                showNotification('تم تحميل البيانات من السحابة ✅', 'success');
+                
             } catch (error) {
-                console.error("Error loading from Firebase:", error);
+                console.error("❌ خطأ في التحميل:", error);
+                console.error("تفاصيل:", error.code, error.message);
                 renderMainAreas();
                 soundEffects.error();
-                showNotification('حدث خطأ في التحميل', 'error');
+                showNotification('حدث خطأ في التحميل: ' + error.message, 'error');
             }
         }
         
         async function saveToFirebase() {
             try {
-                const promises = areasData.map(area => 
-                    window.firebaseSetDoc(window.firebaseDoc(window.firebaseDB, "areas", area.id), area)
-                );
+                console.log("💾 بدء الحفظ على Realtime Database...");
+                
+                const promises = areasData.map(area => {
+                    console.log("📝 حفظ:", area.name);
+                    const areaRef = window.firebaseRef(window.firebaseDB, `areas/${area.id}`);
+                    return window.firebaseSet(areaRef, area);
+                });
+                
                 await Promise.all(promises);
+                
                 soundEffects.success();
-                showNotification('تم الحفظ على السحابة بنجاح', 'success');
+                showNotification('تم الحفظ على السحابة بنجاح ✅', 'success');
+                console.log("✅ تم حفظ جميع المناطق بنجاح!");
+                
             } catch (error) {
-                console.error("Error saving to Firebase:", error);
+                console.error("❌ خطأ في الحفظ:", error);
+                console.error("تفاصيل:", error.code, error.message);
                 soundEffects.error();
-                showNotification('فشل الحفظ على السحابة', 'error');
+                
+                if (error.code === 'PERMISSION_DENIED') {
+                    showNotification('⚠️ خطأ في الصلاحيات - راجع قواعد Database', 'error');
+                } else {
+                    showNotification('فشل الحفظ: ' + error.message, 'error');
+                }
             }
         }
         
         async function saveAreaToFirebase(area) {
             try {
-                await window.firebaseSetDoc(window.firebaseDoc(window.firebaseDB, "areas", area.id), area);
+                const areaRef = window.firebaseRef(window.firebaseDB, `areas/${area.id}`);
+                await window.firebaseSet(areaRef, area);
+                console.log("✅ تم حفظ المنطقة:", area.name);
             } catch (error) {
-                console.error("Error saving area:", error);
+                console.error("❌ خطأ في حفظ المنطقة:", error);
             }
         }
         
         async function saveSubAreaDetailsToFirebase(key, details) {
             try {
-                await window.firebaseSetDoc(window.firebaseDoc(window.firebaseDB, "subAreaDetails", key), details);
+                const detailsRef = window.firebaseRef(window.firebaseDB, `subAreaDetails/${key}`);
+                await window.firebaseSet(detailsRef, details);
+                console.log("✅ تم حفظ تفاصيل:", key);
             } catch (error) {
-                console.error("Error saving sub-area details:", error);
+                console.error("❌ خطأ في حفظ التفاصيل:", error);
             }
         }
         
         async function getSubAreaDetailsFromFirebase(key) {
             try {
-                const docSnap = await window.firebaseGetDoc(window.firebaseDoc(window.firebaseDB, "subAreaDetails", key));
-                return docSnap.exists() ? docSnap.data() : null;
+                const detailsRef = window.firebaseRef(window.firebaseDB, `subAreaDetails/${key}`);
+                const snapshot = await window.firebaseGet(detailsRef);
+                return snapshot.exists() ? snapshot.val() : null;
             } catch (error) {
-                console.error("Error getting sub-area details:", error);
+                console.error("❌ خطأ في جلب التفاصيل:", error);
                 return null;
             }
         }
         
         async function deleteAreaFromFirebase(id) {
             try {
-                await window.firebaseDeleteDoc(window.firebaseDoc(window.firebaseDB, "areas", id));
+                const areaRef = window.firebaseRef(window.firebaseDB, `areas/${id}`);
+                await window.firebaseRemove(areaRef);
+                console.log("✅ تم حذف المنطقة من Firebase");
             } catch (error) {
-                console.error("Error deleting area:", error);
+                console.error("❌ خطأ في الحذف:", error);
             }
         }
         
@@ -1583,7 +1526,7 @@
             
             appState.selectedSubArea = { name: subName, index: index };
             
-            const key = `${appState.selectedMainArea.id}_${subName}`;
+            const key = `${appState.selectedMainArea.id}_${subName.replace(/\s+/g, '_')}`;
             const details = await getSubAreaDetailsFromFirebase(key);
             
             if (details) {
@@ -1603,7 +1546,7 @@
         }
         
         function loadSubAreaDetails() {
-            const key = `${appState.selectedMainArea.id}_${appState.selectedSubArea.name}`;
+            const key = `${appState.selectedMainArea.id}_${appState.selectedSubArea.name.replace(/\s+/g, '_')}`;
             const details = appState.subAreaDetails[key] || {
                 problems: '',
                 lifePlans: [],
@@ -1822,7 +1765,7 @@
                 return;
             }
             
-            const key = `${appState.selectedMainArea.id}_${appState.selectedSubArea.name}`;
+            const key = `${appState.selectedMainArea.id}_${appState.selectedSubArea.name.replace(/\s+/g, '_')}`;
             if (!appState.subAreaDetails[key]) {
                 appState.subAreaDetails[key] = { problems: '', lifePlans: [], lastVisitDate: '' };
             }
@@ -1840,7 +1783,7 @@
         
         function deleteLifePlan(index) {
             if (confirm('هل تريد حذف هذه الخطة؟')) {
-                const key = `${appState.selectedMainArea.id}_${appState.selectedSubArea.name}`;
+                const key = `${appState.selectedMainArea.id}_${appState.selectedSubArea.name.replace(/\s+/g, '_')}`;
                 appState.subAreaDetails[key].lifePlans.splice(index, 1);
                 renderLifePlans(appState.subAreaDetails[key].lifePlans);
                 soundEffects.success();
@@ -1856,19 +1799,20 @@
                 return;
             }
             
-            const key = `${appState.selectedMainArea.id}_${appState.selectedSubArea.name}`;
+            const key = `${appState.selectedMainArea.id}_${appState.selectedSubArea.name.replace(/\s+/g, '_')}`;
             
             const details = {
                 problems: document.getElementById('problemsText').value,
                 lifePlans: appState.subAreaDetails[key]?.lifePlans || [],
-                lastVisitDate: document.getElementById('lastVisitDate').value
+                lastVisitDate: document.getElementById('lastVisitDate').value,
+                lastUpdated: new Date().toLocaleString('ar-EG')
             };
             
             appState.subAreaDetails[key] = details;
             await saveSubAreaDetailsToFirebase(key, details);
             
             soundEffects.success();
-            showNotification('تم حفظ التفاصيل بنجاح', 'success');
+            showNotification('تم حفظ التفاصيل بنجاح ✅', 'success');
         }
         
         // ==================== PRINT ====================
@@ -1876,7 +1820,8 @@
             soundEffects.notification();
             
             const container = document.getElementById('printContent');
-            container.innerHTML = '';
+            container.innerHTML = '<p style="text-align: center;"><i class="fas fa-spinner fa-spin"></i> جاري تحضير التقرير...</p>';
+            document.getElementById('printPreview').style.display = 'block';
             
             let html = '<h3 style="color: var(--primary-color); margin-bottom: 20px;">المناطق الرئيسية</h3>';
             
@@ -1894,7 +1839,7 @@
                     html += '<h5 style="margin-top: 15px; color: var(--primary-color);">المناطق التابعة:</h5>';
                     
                     for (const sub of area.subAreas) {
-                        const key = `${area.id}_${sub}`;
+                        const key = `${area.id}_${sub.replace(/\s+/g, '_')}`;
                         const details = await getSubAreaDetailsFromFirebase(key);
                         
                         html += `
@@ -1930,7 +1875,6 @@
             }
             
             container.innerHTML = html;
-            document.getElementById('printPreview').style.display = 'block';
             showNotification('تم إنشاء المعاينة', 'info');
         }
         
@@ -1954,7 +1898,6 @@
             appState.presentationSlides = [];
             
             for (const area of areasData) {
-                // Slide for main area
                 appState.presentationSlides.push({
                     title: area.name,
                     content: `
@@ -1965,10 +1908,9 @@
                     `
                 });
                 
-                // Slides for sub-areas
                 if (area.subAreas && area.subAreas.length > 0) {
                     for (const sub of area.subAreas) {
-                        const key = `${area.id}_${sub}`;
+                        const key = `${area.id}_${sub.replace(/\s+/g, '_')}`;
                         const details = await getSubAreaDetailsFromFirebase(key);
                         
                         let content = `<div class="info-box"><h3 style="color: var(--secondary-color); margin-bottom: 20px;"><i class="fas fa-building"></i> ${sub}</h3>`;
@@ -2052,7 +1994,7 @@
             document.getElementById('presentationMode').classList.remove('active');
         }
         
-        // Keyboard navigation for presentation
+        // Keyboard navigation
         document.addEventListener('keydown', (e) => {
             const presentationActive = document.getElementById('presentationMode').classList.contains('active');
             if (!presentationActive) return;
