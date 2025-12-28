@@ -1272,19 +1272,48 @@
             }
         }
 
+        // دالة لتنظيف البيانات من القيم غير المعرفة (undefined)
+        function cleanDataForFirebase(data) {
+            const cleanedData = JSON.parse(JSON.stringify(data, (key, value) => {
+                // إزالة القيم undefined
+                if (value === undefined) {
+                    return null;
+                }
+                // إزالة الخصائص الفارغة
+                if (Array.isArray(value) && value.length === 0) {
+                    return [];
+                }
+                if (typeof value === 'object' && value !== null) {
+                    const obj = {};
+                    for (const k in value) {
+                        if (value[k] !== undefined && value[k] !== null) {
+                            obj[k] = value[k];
+                        }
+                    }
+                    return Object.keys(obj).length > 0 ? obj : null;
+                }
+                return value;
+            }));
+            
+            return cleanedData;
+        }
+
         async function saveToFirebase() {
             showNotification('جاري الحفظ...', 'info');
             
             try {
                 for (const area of areasData) {
-                    const areaRef = window.firebaseRef(window.firebaseDB, `areas/${area.id}`);
-                    await window.firebaseSet(areaRef, area);
+                    // تنظيف البيانات قبل الحفظ
+                    const cleanedArea = cleanDataForFirebase(area);
+                    const areaRef = window.firebaseRef(window.firebaseDB, `areas/${cleanedArea.id}`);
+                    await window.firebaseSet(areaRef, cleanedArea);
                 }
                 
                 showNotification('تم الحفظ على السحابة بنجاح ✅', 'success');
                 
             } catch (error) {
                 console.error('❌ خطأ في الحفظ:', error);
+                console.error('تفاصيل الخطأ:', error.message);
                 showNotification('فشل الحفظ: ' + error.message, 'error');
             }
         }
@@ -1295,8 +1324,9 @@
             
             const key = generateDetailsKey();
             try {
+                const cleanedDetails = cleanDataForFirebase(details);
                 const detailsRef = window.firebaseRef(window.firebaseDB, `details/${key}`);
-                await window.firebaseSet(detailsRef, details);
+                await window.firebaseSet(detailsRef, cleanedDetails);
                 showNotification('تم حفظ التفاصيل بنجاح', 'success');
             } catch (error) {
                 console.error('❌ خطأ في حفظ التفاصيل:', error);
@@ -1873,16 +1903,18 @@
                 hasVillages: hasVillages,
                 villagesCount: hasVillages === 'yes' ? parseInt(document.getElementById('villageCount').value) || 0 : 0,
                 directFollowers: hasVillages === 'no' ? parseInt(document.getElementById('directCount').value) || 0 : 0,
-                villages: hasVillages === 'yes' ? [] : undefined,
-                directSubAreas: hasVillages === 'no' ? [] : undefined
+                villages: hasVillages === 'yes' ? [] : [],
+                directSubAreas: hasVillages === 'no' ? [] : []
             };
             
-            areasData.push(newArea);
+            // تنظيف البيانات قبل الإضافة
+            const cleanedArea = cleanDataForFirebase(newArea);
+            areasData.push(cleanedArea);
             renderMainAreas();
             
             try {
-                const areaRef = window.firebaseRef(window.firebaseDB, `areas/${newArea.id}`);
-                await window.firebaseSet(areaRef, newArea);
+                const areaRef = window.firebaseRef(window.firebaseDB, `areas/${cleanedArea.id}`);
+                await window.firebaseSet(areaRef, cleanedArea);
             } catch (error) {
                 console.error('❌ خطأ في حفظ المنطقة:', error);
             }
@@ -1914,8 +1946,10 @@
             renderVillages();
             
             try {
+                // تنظيف البيانات قبل الحفظ
+                const cleanedArea = cleanDataForFirebase(appState.selectedMainArea);
                 const areaRef = window.firebaseRef(window.firebaseDB, `areas/${appState.selectedMainArea.id}`);
-                await window.firebaseSet(areaRef, appState.selectedMainArea);
+                await window.firebaseSet(areaRef, cleanedArea);
             } catch (error) {
                 console.error('❌ خطأ في حفظ القرية:', error);
             }
@@ -1961,8 +1995,10 @@
                 renderSubAreas();
                 
                 try {
+                    // تنظيف البيانات قبل الحفظ
+                    const cleanedArea = cleanDataForFirebase(appState.selectedMainArea);
                     const areaRef = window.firebaseRef(window.firebaseDB, `areas/${appState.selectedMainArea.id}`);
-                    await window.firebaseSet(areaRef, appState.selectedMainArea);
+                    await window.firebaseSet(areaRef, cleanedArea);
                 } catch (error) {
                     console.error('❌ خطأ في حفظ المنطقة التابعة:', error);
                 }
@@ -1983,6 +2019,9 @@
                 if (newName && newName.trim()) {
                     area.name = newName.trim();
                     renderMainAreas();
+                    
+                    // حفظ التغييرات في Firebase
+                    saveToFirebase();
                     showNotification('تم تعديل المنطقة', 'success');
                 }
             } else if (type === 'village') {
@@ -1993,6 +2032,9 @@
                 if (newName && newName.trim()) {
                     village.name = newName.trim();
                     renderVillages();
+                    
+                    // حفظ التغييرات في Firebase
+                    saveToFirebase();
                     showNotification('تم تعديل القرية', 'success');
                 }
             } else if (type === 'subArea') {
@@ -2009,6 +2051,9 @@
                 if (newName && newName.trim()) {
                     subAreas[id] = newName.trim();
                     renderSubAreas();
+                    
+                    // حفظ التغييرات في Firebase
+                    saveToFirebase();
                     showNotification('تم تعديل المنطقة التابعة', 'success');
                 }
             }
@@ -2061,9 +2106,11 @@
                         
                     case 'village':
                         appState.selectedMainArea.villages.splice(id, 1);
+                        // تنظيف البيانات قبل الحفظ
+                        const cleanedArea = cleanDataForFirebase(appState.selectedMainArea);
                         await window.firebaseSet(
                             window.firebaseRef(window.firebaseDB, `areas/${appState.selectedMainArea.id}`),
-                            appState.selectedMainArea
+                            cleanedArea
                         );
                         renderVillages();
                         break;
@@ -2075,9 +2122,11 @@
                         } else {
                             appState.selectedMainArea.directSubAreas.splice(id, 1);
                         }
+                        // تنظيف البيانات قبل الحفظ
+                        const cleanedArea2 = cleanDataForFirebase(appState.selectedMainArea);
                         await window.firebaseSet(
                             window.firebaseRef(window.firebaseDB, `areas/${appState.selectedMainArea.id}`),
-                            appState.selectedMainArea
+                            cleanedArea2
                         );
                         renderSubAreas();
                         break;
