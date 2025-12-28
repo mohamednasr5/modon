@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>الخريطة الإدارية - مركز ومدينة المنزلة (مطور)</title>
+    
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+        import { getFirestore, collection, doc, setDoc, getDoc, updateDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+        
+        const firebaseConfig = {
+            apiKey: "AIzaSyDqwVpiB_jrnWek_Pemns7hI7aUgMQOHas",
+            authDomain: "twap-59d3e.firebaseapp.com",
+            projectId: "twap-59d3e",
+            storageBucket: "twap-59d3e.firebasestorage.app",
+            messagingSenderId: "193674884546",
+            appId: "1:193674884546:web:ca5a7aee2fcb4361d6925b",
+            measurementId: "G-WX3X03B2KV"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        
+        window.db = db;
+        window.doc = doc;
+        window.setDoc = setDoc;
+        window.getDoc = getDoc;
+        window.updateDoc = updateDoc;
+        window.deleteDoc = deleteDoc;
+        window.onSnapshot = onSnapshot;
+        window.collection = collection;
+    </script>
+    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        :root {
+            --primary-color: #2c3e50; --secondary-color: #3498db; --accent-color: #e74c3c;
+            --light-color: #ecf0f1; --dark-color: #2c3e50; --success-color: #27ae60;
+            --warning-color: #f39c12; --danger-color: #e74c3c;
+            --shadow: 0 4px 12px rgba(0, 0, 0, 0.1); --border-radius: 8px;
+        }
+        body { background-color: #f8f9fa; color: #333; line-height: 1.6; }
+        .app-container { max-width: 1600px; margin: 0 auto; padding: 20px; }
+        
+        /* Header */
+        header { text-align: center; margin-bottom: 30px; padding: 20px; background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)); color: white; border-radius: var(--border-radius); box-shadow: var(--shadow); }
+        h1 { font-size: 2.5rem; margin-bottom: 10px; }
+        
+        /* Controls & Layout */
+        .controls { display: flex; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+        .main-content { display: grid; grid-template-columns: 300px 1fr 450px; gap: 25px; margin-bottom: 40px; }
+        @media (max-width: 1200px) { .main-content { grid-template-columns: 1fr; } }
+        
+        /* Sections */
+        .areas-section, .details-section, .print-section { background-color: white; border-radius: var(--border-radius); padding: 25px; box-shadow: var(--shadow); }
+        .section-title { font-size: 1.5rem; color: var(--primary-color); margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid var(--secondary-color); display: flex; justify-content: space-between; align-items: center; }
+        
+        /* Area Cards */
+        .areas-container, .sub-areas-list { display: flex; flex-direction: column; gap: 10px; max-height: 500px; overflow-y: auto; padding: 5px; }
+        .area-card, .sub-area-card { background-color: var(--light-color); border-radius: var(--border-radius); padding: 15px; cursor: pointer; transition: all 0.3s ease; border-left: 5px solid var(--secondary-color); position: relative; }
+        .area-card:hover, .sub-area-card:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
+        .area-card.selected, .sub-area-card.selected { background-color: var(--secondary-color); color: white; }
+        .area-name { font-weight: bold; font-size: 1.1rem; }
+        
+        /* Buttons */
+        .btn { padding: 10px 20px; border: none; border-radius: var(--border-radius); cursor: pointer; color: white; display: inline-flex; align-items: center; gap: 8px; transition: 0.3s; }
+        .btn-primary { background-color: var(--secondary-color); }
+        .btn-success { background-color: var(--success-color); }
+        .btn-danger { background-color: var(--danger-color); }
+        .btn-warning { background-color: var(--warning-color); }
+        .btn-accent { background-color: var(--accent-color); }
+        .btn-small { padding: 5px 10px; font-size: 0.9rem; }
+        .action-btn { background: none; border: none; cursor: pointer; width: 25px; height: 25px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+        .area-actions, .sub-area-actions { position: absolute; left: 10px; top: 10px; display: flex; gap: 5px; opacity: 0; transition: opacity 0.3s; }
+        .area-card:hover .area-actions, .sub-area-card:hover .sub-area-actions { opacity: 1; }
+        .edit-btn { background: var(--secondary-color); color: white; }
+        .delete-btn { background: var(--danger-color); color: white; }
+        .add-btn { background-color: var(--success-color); color: white; border: none; border-radius: 50%; width: 35px; height: 35px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+
+        /* --- NEW TABS STYLES --- */
+        .tabs { display: flex; margin-bottom: 20px; border-bottom: 2px solid #ddd; overflow-x: auto; }
+        .tab-btn { padding: 10px 15px; background: none; border: none; cursor: pointer; font-size: 0.95rem; font-weight: bold; color: #666; border-bottom: 3px solid transparent; transition: all 0.3s; white-space: nowrap; }
+        .tab-btn:hover { color: var(--secondary-color); background-color: #f5f9ff; }
+        .tab-btn.active { color: var(--secondary-color); border-bottom-color: var(--secondary-color); }
+        .tab-content { display: none; animation: fadeIn 0.3s ease-out; }
+        .tab-content.active { display: block; }
+        
+        /* --- NEW FORM STYLES --- */
+        .data-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label, .detail-item label { display: block; margin-bottom: 5px; color: var(--primary-color); font-weight: bold; font-size: 0.9rem; }
+        .form-group input, .detail-item input, .detail-item textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-family: inherit; }
+        .image-preview { width: 100%; height: 200px; background-color: #eee; border-radius: var(--border-radius); display: flex; align-items: center; justify-content: center; margin-top: 10px; overflow: hidden; border: 2px dashed #ccc; }
+        .image-preview img { width: 100%; height: 100%; object-fit: cover; }
+
+        /* Print Styles */
+        @media print {
+            body * { visibility: hidden; }
+            .print-preview, .print-preview * { visibility: visible; }
+            .print-preview { position: absolute; left: 0; top: 0; width: 100%; background: white; padding: 20px; }
+            .btn, header, .areas-section, .details-section, .controls { display: none !important; }
+        }
+        .print-preview { display: none; background: #f9f9f9; padding: 20px; margin-top: 20px; border-radius: 8px; }
+        .print-preview.active { display: block; }
+        .print-area { margin-bottom: 20px; border-bottom: 1px solid #ddd; padding-bottom: 15px; }
+        .print-detail-row { display: flex; margin-bottom: 5px; }
+        .print-label { font-weight: bold; min-width: 120px; color: #555; }
+
+        /* Modals & Notifications */
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1000; opacity: 0; visibility: hidden; transition: 0.3s; }
+        .modal-overlay.active { opacity: 1; visibility: visible; }
+        .modal { background: white; padding: 30px; border-radius: 8px; width: 90%; max-width: 500px; }
+        .notification { position: fixed; top: 20px; right: 20px; padding: 15px; border-radius: 8px; color: white; z-index: 1100; animation: slideIn 0.5s, fadeOut 0.5s 3s forwards; }
+        
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+        @keyframes fadeOut { to { opacity: 0; } }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="app-container">
+        <header>
+            <h1>الخريطة الإدارية التفاعلية</h1>
+            <div class="subtitle">مركز ومدينة المنزلة - قاعدة بيانات شاملة</div>
+        </header>
+        
+        <div class="controls">
+            <div>
+                <button class="btn btn-primary" onclick="showAllAreas()"><i class="fas fa-globe"></i> كل المناطق</button>
+                <button class="btn btn-warning" onclick="focusOnSelectedArea()"><i class="fas fa-crosshairs"></i> تركيز</button>
+            </div>
+            <button class="btn btn-success" onclick="saveToLocalStorage(); showNotification('تم الحفظ محلياً', 'success')"><i class="fas fa-save"></i> حفظ احتياطي محلي</button>
+        </div>
+        
+        <div class="main-content">
+            <section class="areas-section" id="mainAreasSection">
+                <div class="section-title">
+                    <span>المناطق الرئيسية</span>
+                    <button class="add-btn" onclick="showAddMainAreaModal()" title="إضافة"><i class="fas fa-plus"></i></button>
+                </div>
+                <div class="areas-container" id="mainAreasContainer">
+                    <div style="text-align:center; padding:20px;">جاري تحميل البيانات...</div>
+                </div>
+            </section>
+            
+            <section class="areas-section" id="subAreasSection">
+                <div class="section-title">
+                    <span>المناطق التابعة</span>
+                    <button class="add-btn" id="addSubAreaBtn" onclick="showAddSubAreaModal()" style="display: none;" title="إضافة"><i class="fas fa-plus"></i></button>
+                </div>
+                <div id="currentAreaInfo"></div>
+                <div class="sub-areas-list" id="subAreasList">
+                    <div style="text-align:center; color:#777; padding:20px;">اختر منطقة رئيسية لعرض توابعها</div>
+                </div>
+            </section>
+            
+            <section class="details-section" id="detailsSection">
+                <div class="section-title">
+                    <span>تفاصيل المنطقة</span>
+                    <button class="action-btn" onclick="clearSelectedArea()" title="إغلاق"><i class="fas fa-times"></i></button>
+                </div>
+                
+                <div class="details-container" id="detailsContainer" style="display: none;">
+                    <div class="tabs">
+                        <button class="tab-btn active" onclick="switchTab('general')">بيانات عامة</button>
+                        <button class="tab-btn" onclick="switchTab('problems')">المشاكل والاحتياجات</button>
+                        <button class="tab-btn" onclick="switchTab('plans')">الخطط والزيارات</button>
+                        <button class="tab-btn" onclick="switchTab('media')">الخرائط والصور</button>
+                    </div>
+
+                    <div id="general" class="tab-content active">
+                        <div class="data-grid">
+                            <div class="form-group">
+                                <label>عدد السكان (نسمة):</label>
+                                <input type="number" id="populationCount" placeholder="0">
+                            </div>
+                            <div class="form-group">
+                                <label>الكتلة التصويتية:</label>
+                                <input type="number" id="voteCount" placeholder="0">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>اسم المسؤول / كبير العائلة:</label>
+                            <input type="text" id="responsiblePerson" placeholder="الاسم">
+                        </div>
+                        <div class="form-group">
+                            <label>أرقام تواصل هامة:</label>
+                            <input type="text" id="contactNumbers" placeholder="أرقام الهاتف">
+                        </div>
+                    </div>
+
+                    <div id="problems" class="tab-content">
+                        <div class="form-group">
+                            <label>مشاكل المكان بالتفصيل:</label>
+                            <textarea id="problemsText" style="width:100%; min-height:150px; padding:10px;" placeholder="اكتب المشاكل هنا..."></textarea>
+                        </div>
+                    </div>
+
+                    <div id="plans" class="tab-content">
+                        <div class="form-group">
+                            <label>خطط حياة كريمة / تطوير:</label>
+                            <textarea id="lifePlanText" style="width:100%; min-height:100px; padding:10px;" placeholder="الخطط المدرجة..."></textarea>
+                        </div>
+                        <div class="form-group" style="border-top:1px dashed #ddd; padding-top:10px;">
+                            <label>تاريخ آخر زيارة:</label>
+                            <input type="date" id="lastVisitDate" style="margin-bottom:10px;">
+                            <textarea id="lastVisitDetails" style="width:100%; min-height:80px;" placeholder="تفاصيل الزيارة وما تم الاتفاق عليه..."></textarea>
+                        </div>
+                    </div>
+
+                    <div id="media" class="tab-content">
+                        <div class="form-group">
+                            <label>رابط الموقع (Google Maps):</label>
+                            <input type="text" id="mapLink" placeholder="https://maps.google.com/..." style="direction:ltr; text-align:left;">
+                            <a id="openMapBtn" href="#" target="_blank" class="btn btn-small btn-primary" style="display:none; margin-top:5px;">
+                                <i class="fas fa-map-marker-alt"></i> فتح الخريطة
+                            </a>
+                        </div>
+                        <div class="form-group">
+                            <label>رابط صورة للمكان:</label>
+                            <input type="text" id="imageUrl" placeholder="رابط الصورة..." onchange="updateImagePreview()" style="direction:ltr; text-align:left;">
+                            <div class="image-preview" id="imgPreviewBox">
+                                <span style="color:#999;">لا توجد صورة</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 20px; border-top: 2px solid #eee; padding-top: 15px; display:flex; gap:10px;">
+                        <button class="btn btn-success" style="flex:1;" onclick="saveAllDetails()">
+                            <i class="fas fa-save"></i> حفظ التعديلات
+                        </button>
+                    </div>
+                </div>
+            </section>
+        </div>
+        
+        <section class="print-section">
+            <div class="section-title">طباعة التقرير</div>
+            <div style="display:flex; gap:10px;">
+                <button class="btn btn-primary" onclick="generatePrintPreview()"><i class="fas fa-eye"></i> معاينة</button>
+                <button class="btn btn-success" onclick="window.print()"><i class="fas fa-print"></i> طباعة</button>
+            </div>
+            <div class="print-preview" id="printPreview">
+                <h2 style="text-align: center; color: var(--primary-color); border-bottom: 2px solid #333; padding-bottom:10px;">تقرير مركز ومدينة المنزلة</h2>
+                <div id="printContent"></div>
+            </div>
+        </section>
+    </div>
+
+    <div class="modal-overlay" id="addMainAreaModal">
+        <div class="modal">
+            <h3>منطقة رئيسية جديدة</h3>
+            <div class="form-group"><input type="text" id="newMainAreaName" placeholder="اسم المنطقة"></div>
+            <div class="form-group"><input type="number" id="newMainAreaVillages" placeholder="عدد القرى"></div>
+            <div class="form-group"><input type="number" id="newMainAreaFollowers" placeholder="عدد التوابع"></div>
+            <div style="display:flex; justify-content:flex-end; gap:10px;">
+                <button class="btn btn-success" onclick="addNewMainArea()">إضافة</button>
+                <button class="btn" style="background:#ddd;" onclick="closeModal('addMainAreaModal')">إلغاء</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="modal-overlay" id="addSubAreaModal">
+        <div class="modal">
+            <h3>منطقة تابعة جديدة</h3>
+            <div class="form-group"><input type="text" id="newSubAreaName" placeholder="اسم المنطقة التابعة"></div>
+            <div style="display:flex; justify-content:flex-end; gap:10px;">
+                <button class="btn btn-success" onclick="addNewSubArea()">إضافة</button>
+                <button class="btn" style="background:#ddd;" onclick="closeModal('addSubAreaModal')">إلغاء</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="deleteAreaModal">
+        <div class="modal">
+            <h3>تأكيد الحذف</h3>
+            <p style="color:red; margin-bottom:15px;">هل أنت متأكد؟ لا يمكن التراجع عن هذا الإجراء.</p>
+            <div style="display:flex; justify-content:flex-end; gap:10px;">
+                <button class="btn btn-danger" onclick="confirmDelete()">حذف</button>
+                <button class="btn" style="background:#ddd;" onclick="closeModal('deleteAreaModal')">إلغاء</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- البيانات الأولية ---
+        let areasData = [
+            { id: "al-amarnat", name: "العمارنة", villages: 8, followers: 25, subAreas: [] },
+            { id: "al-forosat", name: "الفروسات", villages: 2, followers: 52, subAreas: [] },
+            { id: "al-aziza", name: "العزيزة", villages: 8, followers: 85, subAreas: ["خدنك الموز", "سيطح", "سطيح2", "حجاج", "العزبي"] },
+            { id: "al-manzala", name: "المنزلة", villages: 52, followers: 8, subAreas: ["حي السلام", "وسط البلد", "المحطة"] }
+        ];
+
+        // --- حالة التطبيق ---
+        let appState = {
+            selectedMainArea: null,
+            selectedSubArea: null,
+            areaDetails: {},
+            deletePending: null
+        };
+
+        // --- التهيئة ---
+        document.addEventListener('DOMContentLoaded', function() {
+            loadFromLocalStorage(); // تحميل البيانات المحلية أولاً
+            renderMainAreas();
+            setupFirebaseListeners();
+        });
+
+        // --- دوال العرض والتحكم (UI) ---
+        
+        function renderMainAreas() {
+            const container = document.getElementById('mainAreasContainer');
+            container.innerHTML = '';
+            if (areasData.length === 0) {
+                container.innerHTML = '<div style="padding:10px; text-align:center;">لا توجد مناطق</div>';
+                return;
+            }
+            areasData.forEach(area => {
+                const div = document.createElement('div');
+                div.className = 'area-card';
+                div.dataset.id = area.id;
+                div.innerHTML = `
+                    <div class="area-actions">
+                        <button class="action-btn edit-btn" onclick="editName('main', '${area.id}', event)"><i class="fas fa-edit"></i></button>
+                        <button class="action-btn delete-btn" onclick="askDelete('main', '${area.id}', event)"><i class="fas fa-trash"></i></button>
+                    </div>
+                    <div class="area-name">${area.name}</div>
+                    <small>${area.villages} قرية - ${area.subAreas.length} تابعة</small>
+                `;
+                div.onclick = (e) => {
+                    if(!e.target.closest('.area-actions')) selectMainArea(area);
+                };
+                container.appendChild(div);
+            });
+        }
+
+        function renderSubAreas(subAreas) {
+            const container = document.getElementById('subAreasList');
+            container.innerHTML = '';
+            if (!subAreas || subAreas.length === 0) {
+                container.innerHTML = '<div style="padding:10px; text-align:center;">لا توجد مناطق تابعة</div>';
+                return;
+            }
+            subAreas.forEach((sub, index) => {
+                const div = document.createElement('div');
+                div.className = 'sub-area-card';
+                div.dataset.index = index;
+                div.innerHTML = `
+                    <div class="sub-area-actions">
+                        <button class="action-btn delete-btn" onclick="askDelete('sub', ${index}, event)"><i class="fas fa-trash"></i></button>
+                    </div>
+                    <div class="sub-area-name">${sub}</div>
+                `;
+                div.onclick = (e) => {
+                    if(!e.target.closest('.sub-area-actions')) selectSubArea(sub, index);
+                };
+                container.appendChild(div);
+            });
+        }
+
+        // --- دوال الاختيار (Selection) ---
+
+        function selectMainArea(area) {
+            // UI Updates
+            document.querySelectorAll('.area-card').forEach(c => c.classList.remove('selected'));
+            document.querySelector(`.area-card[data-id="${area.id}"]`).classList.add('selected');
+            document.getElementById('currentAreaInfo').innerHTML = `<h4 style="margin:10px 0; color:var(--secondary-color);">${area.name}</h4>`;
+            document.getElementById('addSubAreaBtn').style.display = 'block';
+            document.getElementById('detailsContainer').style.display = 'block';
+            
+            // State Updates
+            appState.selectedMainArea = area;
+            appState.selectedSubArea = null;
+            
+            // Render Subs
+            renderSubAreas(area.subAreas);
+            
+            // Load Data
+            loadAreaData(area.id).then(() => {
+                loadCurrentDetailData(); // تحميل البيانات للحقول
+                showNotification(`تم تحديد: ${area.name}`, 'success');
+            });
+        }
+
+        function selectSubArea(subName, index) {
+            // UI Updates
+            document.querySelectorAll('.sub-area-card').forEach(c => c.classList.remove('selected'));
+            document.querySelector(`.sub-area-card[data-index="${index}"]`).classList.add('selected');
+            
+            // State Updates
+            appState.selectedSubArea = { name: subName, index: index };
+            
+            // Load Data
+            const fullName = `${appState.selectedMainArea.name}_${subName}`;
+            getAreaDetailsFromFirebase(fullName).then((data) => {
+                if(data) appState.areaDetails[fullName] = data;
+                loadCurrentDetailData();
+                showNotification(`تم تحديد: ${subName}`, 'success');
+            });
+        }
+
+        // --- دوال التبويبات والتفاصيل (New) ---
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            
+            // تفعيل الزر المناسب
+            const btns = document.querySelectorAll('.tab-btn');
+            btns.forEach(btn => {
+                if(btn.getAttribute('onclick').includes(tabId)) btn.classList.add('active');
+            });
+        }
+
+        function updateImagePreview() {
+            const url = document.getElementById('imageUrl').value;
+            const box = document.getElementById('imgPreviewBox');
+            if(url) {
+                box.innerHTML = `<img src="${url}" onerror="this.src=''; this.parentElement.innerHTML='<span style=\'color:red\'>رابط غير صالح</span>'">`;
+            } else {
+                box.innerHTML = '<span style="color:#999;">لا توجد صورة</span>';
+            }
+        }
+
+        function getCurrentAreaName() {
+            if (appState.selectedSubArea) {
+                return `${appState.selectedMainArea.name}_${appState.selectedSubArea.name}`;
+            } else if (appState.selectedMainArea) {
+                return appState.selectedMainArea.name;
+            }
+            return null;
+        }
+
+        function loadCurrentDetailData() {
+            const areaName = getCurrentAreaName();
+            if(!areaName) return;
+            
+            const data = appState.areaDetails[areaName] || {};
+            
+            // تعبئة الحقول
+            document.getElementById('populationCount').value = data.population || '';
+            document.getElementById('voteCount').value = data.voteCount || '';
+            document.getElementById('responsiblePerson').value = data.responsiblePerson || '';
+            document.getElementById('contactNumbers').value = data.contactNumbers || '';
+            
+            document.getElementById('problemsText').value = data.problems || '';
+            document.getElementById('lifePlanText').value = data.lifePlan || '';
+            document.getElementById('lastVisitDate').value = data.lastVisitDate || '';
+            document.getElementById('lastVisitDetails').value = data.lastVisitDetails || '';
+            
+            document.getElementById('mapLink').value = data.mapLink || '';
+            const mapBtn = document.getElementById('openMapBtn');
+            if(data.mapLink) { mapBtn.href = data.mapLink; mapBtn.style.display = 'inline-flex'; }
+            else { mapBtn.style.display = 'none'; }
+            
+            document.getElementById('imageUrl').value = data.imageUrl || '';
+            updateImagePreview();
+        }
+
+        function saveAllDetails() {
+            const areaName = getCurrentAreaName();
+            if (!areaName) { showNotification('اختر منطقة أولاً', 'error'); return; }
+
+            const allData = {
+                population: document.getElementById('populationCount').value,
+                voteCount: document.getElementById('voteCount').value,
+                responsiblePerson: document.getElementById('responsiblePerson').value,
+                contactNumbers: document.getElementById('contactNumbers').value,
+                problems: document.getElementById('problemsText').value,
+                lifePlan: document.getElementById('lifePlanText').value,
+                lastVisitDate: document.getElementById('lastVisitDate').value,
+                lastVisitDetails: document.getElementById('lastVisitDetails').value,
+                mapLink: document.getElementById('mapLink').value,
+                imageUrl: document.getElementById('imageUrl').value,
+                lastUpdated: new Date().toLocaleDateString('ar-EG')
+            };
+
+            // حفظ محلي
+            if (!appState.areaDetails[areaName]) appState.areaDetails[areaName] = {};
+            Object.assign(appState.areaDetails[areaName], allData);
+            saveToLocalStorage();
+            
+            // حفظ سحابي
+            saveAreaDetailsToFirebase(areaName, appState.areaDetails[areaName]);
+            showNotification('تم حفظ كافة البيانات بنجاح', 'success');
+        }
+
+        function clearSelectedArea() {
+            appState.selectedMainArea = null;
+            appState.selectedSubArea = null;
+            document.querySelectorAll('.selected').forEach(e => e.classList.remove('selected'));
+            document.getElementById('detailsContainer').style.display = 'none';
+            document.getElementById('subAreasList').innerHTML = '';
+            document.getElementById('currentAreaInfo').innerHTML = '';
+            showAllAreas();
+        }
+
+        // --- إدارة المناطق (إضافة/حذف) ---
+
+        function showAddMainAreaModal() { document.getElementById('addMainAreaModal').classList.add('active'); }
+        function showAddSubAreaModal() { document.getElementById('addSubAreaModal').classList.add('active'); }
+        function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+        function addNewMainArea() {
+            const name = document.getElementById('newMainAreaName').value;
+            if(!name) return;
+            const newArea = { 
+                id: 'area-' + Date.now(), 
+                name: name, 
+                villages: document.getElementById('newMainAreaVillages').value || 0,
+                followers: document.getElementById('newMainAreaFollowers').value || 0,
+                subAreas: [] 
+            };
+            areasData.push(newArea);
+            renderMainAreas();
+            saveToLocalStorage();
+            saveAreaToFirebase(newArea);
+            closeModal('addMainAreaModal');
+            showNotification('تمت الإضافة', 'success');
+        }
+
+        function addNewSubArea() {
+            const name = document.getElementById('newSubAreaName').value;
+            if(!name || !appState.selectedMainArea) return;
+            
+            appState.selectedMainArea.subAreas.push(name);
+            renderSubAreas(appState.selectedMainArea.subAreas);
+            saveToLocalStorage();
+            saveAreaToFirebase(appState.selectedMainArea);
+            closeModal('addSubAreaModal');
+            showNotification('تمت الإضافة', 'success');
+        }
+
+        function askDelete(type, idOrIndex, event) {
+            event.stopPropagation();
+            appState.deletePending = { type, idOrIndex };
+            document.getElementById('deleteAreaModal').classList.add('active');
+        }
+
+        function confirmDelete() {
+            const { type, idOrIndex } = appState.deletePending;
+            if(type === 'main') {
+                const idx = areasData.findIndex(a => a.id === idOrIndex);
+                if(idx > -1) {
+                    deleteAreaFromFirebase(areasData[idx].id);
+                    areasData.splice(idx, 1);
+                    clearSelectedArea();
+                }
+            } else if (type === 'sub') {
+                appState.selectedMainArea.subAreas.splice(idOrIndex, 1);
+                renderSubAreas(appState.selectedMainArea.subAreas);
+                saveAreaToFirebase(appState.selectedMainArea);
+            }
+            saveToLocalStorage();
+            closeModal('deleteAreaModal');
+            renderMainAreas();
+            showNotification('تم الحذف', 'success');
+        }
+
+        // --- طباعة ومعاينة ---
+
+        function generatePrintPreview() {
+            const container = document.getElementById('printContent');
+            container.innerHTML = '';
+            
+            if (!appState.selectedMainArea) {
+                container.innerHTML = '<p>الرجاء اختيار منطقة أولاً لإنشاء التقرير.</p>';
+                document.getElementById('printPreview').classList.add('active');
+                return;
+            }
+
+            // دالة مساعدة لإنشاء سطر بيانات
+            const row = (label, val) => val ? `<div class="print-detail-row"><span class="print-label">${label}:</span><span>${val}</span></div>` : '';
+
+            // 1. المنطقة الرئيسية
+            const mainKey = appState.selectedMainArea.name;
+            const mainData = appState.areaDetails[mainKey] || {};
+            
+            let html = `<div class="print-area">
+                <h3 style="background:#eee; padding:5px;">${mainKey} (المنطقة الرئيسية)</h3>
+                ${row('المسؤول', mainData.responsiblePerson)}
+                ${row('عدد السكان', mainData.population)}
+                ${row('الكتلة التصويتية', mainData.voteCount)}
+                ${row('أرقام التواصل', mainData.contactNumbers)}
+                <div style="margin-top:10px;">
+                    ${mainData.problems ? `<b>المشاكل:</b><p>${mainData.problems}</p>` : ''}
+                    ${mainData.lifePlan ? `<b>الخطط:</b><p>${mainData.lifePlan}</p>` : ''}
+                </div>
+            </div>`;
+
+            // 2. المناطق التابعة
+            if(appState.selectedMainArea.subAreas.length > 0) {
+                html += `<h4>المناطق التابعة (${appState.selectedMainArea.subAreas.length})</h4>`;
+                appState.selectedMainArea.subAreas.forEach(sub => {
+                    const subKey = `${mainKey}_${sub}`;
+                    const subData = appState.areaDetails[subKey];
+                    if(subData) {
+                        html += `<div class="print-area" style="border-right:3px solid #ccc; padding-right:10px; margin-top:10px;">
+                            <h4 style="color:#555;">${sub}</h4>
+                            ${row('المسؤول', subData.responsiblePerson)}
+                            ${row('السكان', subData.population)}
+                            ${subData.problems ? `<div><b>مشاكل:</b> ${subData.problems.substring(0, 100)}...</div>` : ''}
+                        </div>`;
+                    }
+                });
+            }
+
+            container.innerHTML = html;
+            document.getElementById('printPreview').classList.add('active');
+        }
+
+        // --- التخزين (Firebase & LocalStorage) ---
+
+        async function saveAreaToFirebase(area) {
+            try { await setDoc(doc(db, "areas", area.id), area); } catch(e) { console.error(e); }
+        }
+        async function saveAreaDetailsToFirebase(name, details) {
+            try { await setDoc(doc(db, "areaDetails", name.replace(/\s+/g, '_')), details); } catch(e) { console.error(e); }
+        }
+        async function getAreaDetailsFromFirebase(name) {
+            try {
+                const snap = await getDoc(doc(db, "areaDetails", name.replace(/\s+/g, '_')));
+                return snap.exists() ? snap.data() : null;
+            } catch(e) { return null; }
+        }
+        async function deleteAreaFromFirebase(id) {
+            try { await deleteDoc(doc(db, "areas", id)); } catch(e) { console.error(e); }
+        }
+        
+        async function loadAreaData(id) {
+            // تحميل من البيانات المحلية أولاً
+            const area = areasData.find(a => a.id === id);
+            if(!area) return;
+            // محاولة جلب تفاصيل إضافية من Firebase
+            const details = await getAreaDetailsFromFirebase(area.name);
+            if(details) appState.areaDetails[area.name] = details;
+        }
+
+        function saveToLocalStorage() {
+            localStorage.setItem('manzalaMapData', JSON.stringify({ areasData, areaDetails: appState.areaDetails }));
+        }
+        function loadFromLocalStorage() {
+            const data = localStorage.getItem('manzalaMapData');
+            if(data) {
+                const parsed = JSON.parse(data);
+                if(parsed.areasData) areasData = parsed.areasData;
+                if(parsed.areaDetails) appState.areaDetails = parsed.areaDetails;
+            }
+        }
+        function setupFirebaseListeners() { console.log("Firebase Active"); }
+        function showAllAreas() { appState.selectedMainArea = null; renderMainAreas(); document.getElementById('subAreasList').innerHTML=''; document.getElementById('detailsContainer').style.display='none'; }
+        function focusOnSelectedArea() { if(!appState.selectedMainArea) return; document.getElementById('mainAreasContainer').innerHTML=''; }
+        function showNotification(msg, type) {
+            const div = document.createElement('div'); div.className = `notification ${type === 'success' ? 'btn-success' : 'btn-danger'}`;
+            div.textContent = msg; document.body.appendChild(div);
+            setTimeout(() => div.remove(), 3000);
+        }
+    </script>
+</body>
+</html>
