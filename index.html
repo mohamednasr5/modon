@@ -448,6 +448,12 @@
             color: white;
         }
         
+        /* زر إضافة منطقة تابعة */
+        .add-sub-area-btn {
+            margin-top: 20px;
+            width: 100%;
+        }
+        
         /* ============ DETAILS PANEL ============ */
         .details-grid {
             display: grid;
@@ -1116,9 +1122,6 @@
                         <button class="btn btn-success btn-small" onclick="showAddModal('village')">
                             <i class="fas fa-plus"></i> قرية
                         </button>
-                        <button class="btn btn-accent btn-small" onclick="showAddModal('subArea')" style="margin-left: 10px;">
-                            <i class="fas fa-plus"></i> تابعة
-                        </button>
                     </div>
                 </div>
                 <div class="areas-list" id="mainAreasList">
@@ -1144,12 +1147,17 @@
             <div class="card animate__animated animate__fadeInUp" id="subAreasCard" style="display: none;">
                 <div class="card-title">
                     <span>🏘️ المناطق التابعة</span>
-                    <button class="btn btn-accent btn-small" id="addSubAreaBtn" onclick="showAddModal('subArea')" style="display: none;">
-                        <i class="fas fa-plus"></i> إضافة تابعة
+                    <button class="btn btn-accent btn-small" id="addSubAreaBtn" onclick="showAddModal('subArea')">
+                        <i class="fas fa-plus"></i> إضافة منطقة تابعة
                     </button>
                 </div>
                 <div id="currentVillageInfo"></div>
                 <div class="sub-areas-list" id="subAreasList"></div>
+                <!-- زر إضافة منطقة تابعة أسفل القائمة -->
+                <button class="btn btn-accent add-sub-area-btn" onclick="showAddModal('subArea')">
+                    <i class="fas fa-plus-circle"></i>
+                    <span>إضافة منطقة تابعة جديدة</span>
+                </button>
             </div>
 
             <!-- Details -->
@@ -1227,7 +1235,8 @@
             selectedType: null, // 'mainArea', 'village', 'subArea'
             deletePending: null,
             presentationSlides: [],
-            currentSlide: 0
+            currentSlide: 0,
+            addSubAreaContext: null // لتحديد السياق: 'village' أو 'area'
         };
 
         // ==================== INITIALIZATION ====================
@@ -1352,6 +1361,7 @@
                     <div style="text-align: center; padding: 40px; color: #64748b;">
                         <i class="fas fa-village" style="font-size: 3rem; margin-bottom: 15px; opacity: 0.3;"></i>
                         <p>لا توجد قرى</p>
+                        <p style="font-size: 0.9rem;">اضغط على زر إضافة قرية</p>
                     </div>
                 `;
                 return;
@@ -1386,19 +1396,47 @@
         function renderSubAreas() {
             let subAreas = [];
             let container = document.getElementById('subAreasList');
+            let contextInfo = '';
             
             if (appState.selectedVillage) {
                 const village = appState.selectedMainArea.villages[appState.selectedVillage.index];
                 subAreas = village.subAreas || [];
+                contextInfo = `
+                    <div style="background: linear-gradient(135deg, var(--success), #2a9d8f); 
+                               color: white; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
+                        <h4 style="margin: 0; font-size: 1.3rem;">
+                            <i class="fas fa-village"></i> ${village.name}
+                        </h4>
+                        <small style="opacity: 0.9;">
+                            ${village.followers || 0} منطقة تابعة
+                        </small>
+                    </div>
+                `;
+                appState.addSubAreaContext = 'village';
             } else if (appState.selectedMainArea && appState.selectedMainArea.hasVillages === 'no') {
                 subAreas = appState.selectedMainArea.directSubAreas || [];
+                contextInfo = `
+                    <div style="background: linear-gradient(135deg, var(--primary), var(--secondary)); 
+                               color: white; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
+                        <h4 style="margin: 0; font-size: 1.3rem;">
+                            <i class="fas fa-map-marked-alt"></i> ${appState.selectedMainArea.name}
+                        </h4>
+                        <small style="opacity: 0.9;">
+                            ${appState.selectedMainArea.directFollowers || 0} تابعة مباشرة
+                        </small>
+                    </div>
+                `;
+                appState.addSubAreaContext = 'area';
             }
+            
+            document.getElementById('currentVillageInfo').innerHTML = contextInfo;
             
             if (subAreas.length === 0) {
                 container.innerHTML = `
                     <div style="text-align: center; padding: 40px; color: #64748b;">
                         <i class="fas fa-map-pin" style="font-size: 3rem; margin-bottom: 15px; opacity: 0.3;"></i>
                         <p>لا توجد مناطق تابعة</p>
+                        <p style="font-size: 0.9rem;">اضغط على زر إضافة منطقة تابعة</p>
                     </div>
                 `;
                 return;
@@ -1563,18 +1601,6 @@
             document.querySelector(`.village-item[data-index="${index}"]`)?.classList.add('selected');
             
             document.getElementById('addSubAreaBtn').style.display = 'block';
-            
-            document.getElementById('currentVillageInfo').innerHTML = `
-                <div style="background: linear-gradient(135deg, var(--success), #2a9d8f); 
-                           color: white; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
-                    <h4 style="margin: 0; font-size: 1.3rem;">
-                        <i class="fas fa-village"></i> ${village.name}
-                    </h4>
-                    <small style="opacity: 0.9;">
-                        ${village.followers || 0} منطقة تابعة
-                    </small>
-                </div>
-            `;
             
             renderSubAreas();
             await loadDetails();
@@ -1783,9 +1809,21 @@
                     break;
                     
                 case 'subArea':
+                    if (!appState.selectedMainArea && !appState.selectedVillage) {
+                        showNotification('اختر منطقة رئيسية أو قرية أولاً', 'error');
+                        return;
+                    }
+                    
+                    let contextText = '';
+                    if (appState.selectedVillage) {
+                        contextText = `لقرية: ${appState.selectedVillage.name}`;
+                    } else if (appState.selectedMainArea) {
+                        contextText = `للمنطقة: ${appState.selectedMainArea.name}`;
+                    }
+                    
                     modalContent = `
                         <div class="form-group">
-                            <label>اسم المنطقة التابعة:</label>
+                            <label>اسم المنطقة التابعة ${contextText}:</label>
                             <input type="text" id="subAreaName" class="form-control" placeholder="مثال: حي السلام">
                         </div>
                         <div class="modal-actions">
@@ -1797,7 +1835,7 @@
                             </button>
                         </div>
                     `;
-                    title.textContent = 'إضافة منطقة تابعة';
+                    title.textContent = 'إضافة منطقة تابعة جديدة';
                     break;
             }
             
@@ -1894,30 +1932,43 @@
                 return;
             }
             
+            let success = false;
+            
             if (appState.selectedVillage) {
                 // Add to selected village
                 const village = appState.selectedMainArea.villages[appState.selectedVillage.index];
                 if (!village.subAreas) village.subAreas = [];
                 village.subAreas.push(name);
+                success = true;
+                showNotification(`تم إضافة المنطقة التابعة "${name}" للقرية "${village.name}"`, 'success');
             } else if (appState.selectedMainArea && appState.selectedMainArea.hasVillages === 'no') {
                 // Add directly to area
                 if (!appState.selectedMainArea.directSubAreas) {
                     appState.selectedMainArea.directSubAreas = [];
                 }
                 appState.selectedMainArea.directSubAreas.push(name);
+                success = true;
+                showNotification(`تم إضافة المنطقة التابعة "${name}" للمنطقة "${appState.selectedMainArea.name}"`, 'success');
+            } else if (appState.selectedMainArea && appState.selectedMainArea.hasVillages === 'yes') {
+                showNotification('اختر قرية أولاً لإضافة منطقة تابعة', 'error');
+                return;
+            } else {
+                showNotification('اختر منطقة رئيسية أولاً', 'error');
+                return;
             }
             
-            renderSubAreas();
-            
-            try {
-                const areaRef = window.firebaseRef(window.firebaseDB, `areas/${appState.selectedMainArea.id}`);
-                await window.firebaseSet(areaRef, appState.selectedMainArea);
-            } catch (error) {
-                console.error('❌ خطأ في حفظ المنطقة التابعة:', error);
+            if (success) {
+                renderSubAreas();
+                
+                try {
+                    const areaRef = window.firebaseRef(window.firebaseDB, `areas/${appState.selectedMainArea.id}`);
+                    await window.firebaseSet(areaRef, appState.selectedMainArea);
+                } catch (error) {
+                    console.error('❌ خطأ في حفظ المنطقة التابعة:', error);
+                }
+                
+                closeModal('addModal');
             }
-            
-            closeModal('addModal');
-            showNotification(`تم إضافة المنطقة التابعة: ${name}`, 'success');
         }
 
         // ==================== EDIT FUNCTIONS ====================
@@ -1934,8 +1985,33 @@
                     renderMainAreas();
                     showNotification('تم تعديل المنطقة', 'success');
                 }
+            } else if (type === 'village') {
+                const village = appState.selectedMainArea.villages[id];
+                if (!village) return;
+                
+                const newName = prompt('اسم القرية:', village.name);
+                if (newName && newName.trim()) {
+                    village.name = newName.trim();
+                    renderVillages();
+                    showNotification('تم تعديل القرية', 'success');
+                }
+            } else if (type === 'subArea') {
+                let subAreas;
+                if (appState.selectedVillage) {
+                    subAreas = appState.selectedMainArea.villages[appState.selectedVillage.index].subAreas;
+                } else {
+                    subAreas = appState.selectedMainArea.directSubAreas;
+                }
+                
+                if (!subAreas || !subAreas[id]) return;
+                
+                const newName = prompt('اسم المنطقة التابعة:', subAreas[id]);
+                if (newName && newName.trim()) {
+                    subAreas[id] = newName.trim();
+                    renderSubAreas();
+                    showNotification('تم تعديل المنطقة التابعة', 'success');
+                }
             }
-            // Add similar handlers for villages and sub areas
         }
 
         // ==================== DELETE FUNCTIONS ====================
@@ -2256,6 +2332,8 @@
                         
                         html += '</div>';
                     }
+                } else if (area.directSubAreas && area.directSubAreas.length > 0) {
+                    html += `<p><strong>المناطق التابعة المباشرة:</strong> ${area.directSubAreas.join(', ')}</p>`;
                 }
                 
                 html += '</div>';
