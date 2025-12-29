@@ -1,605 +1,597 @@
-
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
-  <title>نظام المنزلة (النسخة المتكاملة)</title>
+  <title>نظام إدارة المنزلة (النسخة الكاملة)</title>
   
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
-    import { getDatabase, ref, set, get, remove, push, update } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
-    
-    const firebaseConfig = {
-      apiKey: "AIzaSyDqwVpiB_jrnWek_Pemns7hI7aUgMQOHas",
-      authDomain: "twap-59d3e.firebaseapp.com",
-      databaseURL: "https://twap-59d3e-default-rtdb.firebaseio.com",
-      projectId: "twap-59d3e",
-      storageBucket: "twap-59d3e.firebasestorage.app",
-      messagingSenderId: "193674884546",
-      appId: "1:193674884546:web:ca5a7aee2fcb4361d6925b",
-      measurementId: "G-WX3X03B2KV"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const database = getDatabase(app);
-    window.db = database; window.dbRef = ref; window.dbSet = set; window.dbGet = get; window.dbRemove = remove; window.dbPush = push; window.dbUpdate = update;
-  </script>
-
-  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
 
   <style>
     :root {
-      --bg-body: #f3f4f6;
-      --glass: rgba(255, 255, 255, 0.9);
-      --primary: #2563eb;
-      --secondary: #4f46e5;
-      --accent: #f59e0b;
-      --radius: 16px;
-      --shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+      --bg: #f8fafc;
+      --glass: rgba(255, 255, 255, 0.98);
+      --primary: #2563eb;   
+      --secondary: #059669; 
+      --danger: #dc2626;    
+      --accent: #d97706;    
+      --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      --radius: 12px;
     }
 
-    * { box-sizing: border-box; outline: none; -webkit-tap-highlight-color: transparent; }
-    
-    body {
-      margin: 0; padding: 15px;
-      font-family: 'Tajawal', sans-serif;
-      background: var(--bg-body);
-      color: #1f2937;
-      min-height: 100vh;
-    }
+    * { box-sizing: border-box; outline: none; }
+    body { margin: 0; padding: 15px; font-family: 'Tajawal', sans-serif; background: var(--bg); color: #1e293b; }
 
-    /* === Header & Search === */
+    /* === Header === */
     .header {
       background: var(--glass); padding: 15px 20px; border-radius: var(--radius);
       box-shadow: var(--shadow); margin-bottom: 20px; border: 1px solid white;
       display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 15px;
     }
     
-    .search-box {
-      flex: 1; max-width: 500px; position: relative; display: flex; align-items: center;
-      background: #f9fafb; border: 2px solid #e5e7eb; border-radius: 50px; padding: 5px;
-      transition: 0.3s;
+    .search-wrapper {
+      flex: 1; max-width: 500px; display: flex; align-items: center;
+      background: #f1f5f9; border-radius: 50px; padding: 5px 15px;
+      border: 2px solid transparent; transition: 0.3s;
     }
-    .search-box:focus-within { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37,99,235,0.2); }
+    .search-wrapper:focus-within { border-color: var(--primary); background: white; }
+    .search-input { border: none; background: transparent; flex: 1; padding: 8px; font-family: inherit; font-size: 1rem; }
     
-    .search-input {
-      flex: 1; border: none; background: transparent; padding: 10px 15px; font-family: inherit; font-size: 1rem;
-    }
-    
-    .mic-btn {
-      width: 40px; height: 40px; border-radius: 50%; border: none; background: white;
-      color: var(--primary); cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-      display: flex; align-items: center; justify-content: center; transition: 0.3s;
-    }
-    .mic-btn.listening { background: #ef4444; color: white; animation: pulse 1s infinite; }
-    @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
-
-    /* === Buttons === */
     .btn {
-      padding: 10px 16px; border: none; border-radius: 10px; cursor: pointer;
-      font-weight: 700; font-family: inherit; display: inline-flex; align-items: center; gap: 8px;
-      color: white; transition: 0.2s; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      padding: 8px 16px; border: none; border-radius: 8px; cursor: pointer;
+      font-weight: 700; color: white; display: inline-flex; align-items: center; gap: 8px;
+      transition: 0.2s; font-family: inherit;
     }
-    .btn:hover { transform: translateY(-2px); }
-    .btn-blue { background: linear-gradient(135deg, #2563eb, #1d4ed8); }
-    .btn-purple { background: linear-gradient(135deg, #7c3aed, #6d28d9); }
-    .btn-green { background: linear-gradient(135deg, #059669, #047857); }
+    .btn:hover { transform: translateY(-2px); opacity: 0.9; }
+    .btn-blue { background: var(--primary); }
+    .btn-green { background: var(--secondary); }
+    .btn-purple { background: #7c3aed; }
+    .btn-dark { background: #334155; }
 
     /* === Grid === */
     .grid {
-      display: grid; grid-template-columns: 1fr 1fr 1.3fr; gap: 20px;
-      height: calc(100vh - 110px);
+      display: grid; grid-template-columns: 1fr 1fr 1.3fr; gap: 15px;
+      height: calc(100vh - 100px);
     }
-    @media (max-width: 1024px) { .grid { grid-template-columns: 1fr; height: auto; } }
+    @media (max-width: 1000px) { .grid { grid-template-columns: 1fr; height: auto; } }
 
     .card {
       background: var(--glass); border-radius: var(--radius); padding: 15px;
       box-shadow: var(--shadow); border: 1px solid white; display: flex; flex-direction: column;
       height: 100%;
     }
-    
-    .card-header {
-      font-weight: 800; font-size: 1.1rem; margin-bottom: 15px; padding-bottom: 10px;
-      border-bottom: 2px solid #f3f4f6; display: flex; justify-content: space-between; align-items: center;
+    .card-head {
+      font-weight: 800; font-size: 1.1rem; border-bottom: 2px solid #f1f5f9;
+      padding-bottom: 10px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;
     }
+    .scroll { flex: 1; overflow-y: auto; padding: 2px; }
 
-    .scroll { flex: 1; overflow-y: auto; padding: 5px; scrollbar-width: thin; }
-
-    /* === List Items === */
+    /* === Items === */
     .item {
-      background: white; border-radius: 12px; padding: 12px; margin-bottom: 10px;
-      border: 1px solid #f3f4f6; cursor: pointer; transition: 0.2s;
-      border-right: 5px solid transparent; position: relative;
+      background: white; padding: 12px; margin-bottom: 8px; border-radius: 8px;
+      border: 1px solid #e2e8f0; cursor: pointer; transition: 0.2s;
+      border-right: 4px solid transparent;
     }
-    .item:hover { transform: translateY(-3px); box-shadow: 0 5px 15px rgba(0,0,0,0.05); }
+    .item:hover { transform: translateX(-3px); }
     .item.selected { background: #eff6ff; border-color: #bfdbfe; }
-
-    /* Colors per level */
-    .lvl-main { border-right-color: var(--primary); }
-    .lvl-mid { border-right-color: #10b981; }
-    .lvl-sub { border-right-color: var(--accent); }
+    
+    .lvl-1 { border-right-color: var(--primary); }
+    .lvl-2 { border-right-color: var(--secondary); }
+    .lvl-3 { border-right-color: var(--accent); }
 
     .item-top { display: flex; justify-content: space-between; align-items: center; }
-    .item-name { font-weight: bold; }
     
-    .count-badge {
-      font-size: 0.75rem; background: #f3f4f6; padding: 2px 8px; border-radius: 10px;
-      color: #6b7280; font-weight: bold; margin-top: 5px; display: inline-block;
+    /* العدادات الجديدة */
+    .stats-container { display: flex; gap: 5px; margin-top: 8px; flex-wrap: wrap; }
+    
+    .badge { 
+      font-size: 0.7rem; padding: 3px 8px; border-radius: 6px; font-weight: bold; 
+      display: flex; align-items: center; gap: 4px; border: 1px solid transparent;
     }
-    .issue-dot {
-      width: 8px; height: 8px; background: #ef4444; border-radius: 50%; display: inline-block; margin-right: 5px;
-    }
-
-    .actions {
-      display: flex; gap: 5px; margin-top: 8px; justify-content: flex-end; opacity: 0.6;
-    }
+    .badge.count { background: #f1f5f9; color: #475569; border-color: #e2e8f0; } /* رمادي للقري */
+    .badge.red { background: #fef2f2; color: #dc2626; border-color: #fecaca; }   /* أحمر للمشاكل */
+    .badge.green { background: #f0fdf4; color: #16a34a; border-color: #bbf7d0; } /* أخضر للخطط */
+    
+    .actions { display: flex; gap: 5px; margin-top: 8px; justify-content: flex-end; opacity: 0.5; }
     .item:hover .actions { opacity: 1; }
-    .act-btn {
-      width: 26px; height: 26px; border-radius: 6px; border: none; cursor: pointer;
-      display: flex; align-items: center; justify-content: center; font-size: 0.8rem;
-    }
-    .act-edit { background: #dbeafe; color: #1e40af; }
-    .act-del { background: #fee2e2; color: #991b1b; }
+    .icon-btn { width: 24px; height: 24px; border-radius: 4px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .ib-edit { background: #dbeafe; color: var(--primary); }
+    .ib-del { background: #fee2e2; color: var(--danger); }
 
     /* === Details === */
-    .details {
-      margin-top: 15px; border-top: 2px dashed #e5e7eb; padding-top: 15px;
-      background: #f9fafb; border-radius: 12px; padding: 10px; flex-shrink: 0;
+    .details-sec {
+      margin-top: 15px; border-top: 2px dashed #cbd5e1; padding-top: 10px;
+      background: #f8fafc; padding: 10px; border-radius: 8px; flex-shrink: 0;
     }
     .det-row {
-      background: white; padding: 10px; border-radius: 8px; margin-bottom: 8px;
-      border: 1px solid #e5e7eb; display: flex; justify-content: space-between; font-size: 0.9rem;
+      background: white; padding: 10px; border-radius: 6px; margin-bottom: 5px;
+      border: 1px solid #e2e8f0; font-size: 0.95rem; display: flex; justify-content: space-between;
     }
-    .visit-tag {
-      background: #dbeafe; color: #1e40af; padding: 2px 6px; border-radius: 4px; 
-      font-size: 0.75rem; font-weight: bold; margin-bottom: 4px; display: inline-block;
-    }
+    
+    /* تلوين النصوص بالكامل */
+    .text-issue { color: #dc2626; font-weight: bold; }
+    .text-plan { color: #16a34a; font-weight: bold; }
+    .visit-tag { background: #e0e7ff; color: var(--primary); font-size: 0.75rem; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
 
     /* === Print === */
     #printArea { display: none; }
     @media print {
       body * { visibility: hidden; }
       #printArea, #printArea * { visibility: visible; }
-      #printArea { position: absolute; left: 0; top: 0; width: 100%; display: block; background: white; color: black; padding: 20px; }
-      .p-page { page-break-after: always; margin-bottom: 30px; border-bottom: 1px solid #ccc; padding-bottom: 20px; }
-      .p-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 10pt; direction: rtl; }
-      .p-table th, .p-table td { border: 1px solid #000; padding: 5px; text-align: right; vertical-align: top; }
-      .p-table th { background: #f3f4f6 !important; }
-      .p-sub-table { width: 100%; border: none; margin-top: 5px; background: #fafafa; }
-      .p-sub-table td { border: 1px dashed #ccc; }
+      #printArea { position: absolute; left: 0; top: 0; width: 100%; display: block; background: white; color: black; padding: 20px; direction: rtl; }
+      .p-page { page-break-after: always; margin-bottom: 20px; border-bottom: 1px dashed #000; }
+      .p-title { text-align: center; border-bottom: 2px solid black; padding-bottom: 10px; margin-bottom: 20px; }
+      
+      /* إجبار الألوان في الطباعة */
+      .print-red { color: #dc2626 !important; font-weight: bold; -webkit-print-color-adjust: exact; }
+      .print-green { color: #16a34a !important; font-weight: bold; -webkit-print-color-adjust: exact; }
+      .print-blue { color: #2563eb !important; -webkit-print-color-adjust: exact; }
+
+      ul { margin: 2px 0; padding-right: 15px; list-style-type: square; }
+      li { margin-bottom: 2px; }
+      table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 11pt; }
+      th, td { border: 1px solid #000; padding: 6px; text-align: right; vertical-align: top; }
+      th { background: #f0f0f0 !important; font-weight: bold; }
     }
 
-    /* === PPT Overlay === */
-    .ppt-ov {
-      position: fixed; inset: 0; background: #111827; z-index: 9000; display: none; flex-direction: column;
-    }
-    .ppt-slide { flex: 1; display: flex; align-items: center; justify-content: center; padding: 30px; }
-    .ppt-card {
-      background: white; width: 90%; max-width: 1200px; height: 85vh; border-radius: 20px; padding: 40px;
-      overflow-y: auto; font-size: 1.2rem;
-    }
-    .ppt-h { color: var(--primary); border-bottom: 4px solid #f3f4f6; padding-bottom: 15px; margin-bottom: 20px; }
+    /* === Modal & PPT === */
+    .modal-ov { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: none; align-items: center; justify-content: center; z-index: 9999; }
+    .modal-box { background: white; padding: 25px; border-radius: 12px; width: 90%; max-width: 400px; }
+    .inp { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; margin-bottom: 10px; font-family: inherit; }
     
-    /* === Modal === */
-    .modal-ov {
-      position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);
-      display: none; align-items: center; justify-content: center; z-index: 5000;
-    }
-    .modal-box { background: white; padding: 25px; border-radius: 16px; width: 90%; max-width: 450px; }
-    .inp { width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px; margin-bottom: 15px; }
-
+    .ppt-ov { position: fixed; inset: 0; background: #1e293b; display: none; flex-direction: column; z-index: 9999; }
+    .ppt-card { background: white; width: 90%; height: 80vh; margin: auto; border-radius: 20px; padding: 40px; overflow-y: auto; font-size: 1.2rem; }
+    .ppt-h { color: var(--primary); font-size: 1.8rem; border-bottom: 3px solid #eee; padding-bottom: 10px; margin-bottom: 20px; }
   </style>
 </head>
 <body>
 
-  <div class="modal-ov" id="entryModal">
-    <div class="modal-box animate__animated animate__zoomIn">
-      <h3 id="modalTitle" style="text-align:center; margin-bottom:20px;"></h3>
-      <div id="modalBody"></div>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+  import { getDatabase, ref, set, get, remove, push, update } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDqwVpiB_jrnWek_Pemns7hI7aUgMQOHas",
+    authDomain: "twap-59d3e.firebaseapp.com",
+    databaseURL: "https://twap-59d3e-default-rtdb.firebaseio.com",
+    projectId: "twap-59d3e",
+    storageBucket: "twap-59d3e.firebasestorage.app",
+    messagingSenderId: "193674884546",
+    appId: "1:193674884546:web:ca5a7aee2fcb4361d6925b",
+    measurementId: "G-WX3X03B2KV"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+
+  window.db = db; window.ref = ref; window.set = set; window.get = get; window.remove = remove; window.push = push; window.update = update;
+  window.dispatchEvent(new Event('firebaseLoaded'));
+</script>
+
+<div class="modal-ov" id="modal">
+  <div class="modal-box animate__animated animate__zoomIn">
+    <h3 id="mTitle" style="text-align:center; margin-bottom:15px;"></h3>
+    <div id="mBody"></div>
+  </div>
+</div>
+
+<div class="ppt-ov" id="ppt">
+  <div id="pptContent"></div>
+  <div style="text-align:center; padding:15px;">
+    <button class="btn btn-dark" onclick="slide(-1)">السابق</button>
+    <button class="btn btn-blue" onclick="slide(1)">التالي</button>
+    <button class="btn btn-dark" style="background:#dc2626" onclick="document.getElementById('ppt').style.display='none'">خروج</button>
+  </div>
+</div>
+
+<div id="printArea"></div>
+
+<div class="header">
+  <div>
+    <h1 style="margin:0; color:#1e293b">نظام إدارة المنزلة</h1>
+    <small style="color:#64748b">عدادات تفصيلية | ألوان مميزة</small>
+  </div>
+  <div class="search-wrapper">
+    <input id="search" class="search-input" placeholder="بحث ذكي..." oninput="doSearch(this.value)">
+    <i class="fas fa-microphone" style="cursor:pointer; color:var(--primary)" onclick="startVoice()"></i>
+  </div>
+  <div style="display:flex; gap:10px; flex-wrap:wrap">
+    <button class="btn btn-blue" onclick="openM('addMain')">+ منطقة</button>
+    <button class="btn btn-purple" onclick="ppt()">عرض</button>
+    <button class="btn btn-green" onclick="printR('curr')">طباعة المحدد</button>
+    <button class="btn btn-dark" onclick="printR('all')">طباعة الكل</button>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="card">
+    <div class="card-head">
+      <span style="color:var(--primary)">المناطق الرئيسية</span>
+      <span id="cMain" style="background:#dbeafe; padding:2px 8px; border-radius:10px; font-size:0.8rem">0</span>
     </div>
+    <div class="scroll" id="lMain">جاري التحميل...</div>
   </div>
 
-  <div class="ppt-ov" id="pptOverlay">
-    <div class="ppt-slide" id="pptContent"></div>
-    <div style="background:#1f2937; padding:15px; display:flex; justify-content:center; gap:20px;">
-      <button class="btn" style="background:#4b5563" onclick="prevSlide()">السابق</button>
-      <span id="pptCounter" style="color:white; align-self:center;"></span>
-      <button class="btn btn-blue" onclick="nextSlide()">التالي</button>
-      <button class="btn" style="background:#dc2626" onclick="closePpt()">خروج</button>
+  <div class="card">
+    <div class="card-head">
+      <span id="tMid" style="color:var(--secondary)">القرى / التوابع</span>
+      <button class="icon-btn ib-edit" onclick="openM('addMid')">+</button>
     </div>
+    <div class="scroll" id="lMid"></div>
   </div>
 
-  <div id="printArea"></div>
-
-  <div class="header">
-    <div>
-      <h1 style="margin:0; font-size:1.5rem; color:#1f2937">نظام المنزلة المتكامل</h1>
-      <small style="color:#6b7280">قاعدة البيانات الأصلية | بحث ذكي | تقارير شاملة</small>
+  <div class="card">
+    <div class="card-head">
+      <span style="color:var(--accent)">التوابع والمتابعة</span>
+    </div>
+    <div style="flex:1; display:flex; flex-direction:column; min-height:150px;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+           <small style="font-weight:bold; color:#64748b">توابع القرية</small>
+           <button class="icon-btn ib-edit" onclick="openM('addSub')">+</button>
+        </div>
+        <div class="scroll" id="lSub" style="background:white; border-radius:8px; border:1px solid #f1f5f9; padding:5px;"></div>
     </div>
     
-    <div class="search-box">
-        <input type="text" id="searchInput" class="search-input" placeholder="ابحث عن منطقة، قرية، تابع...">
-        <button class="mic-btn" id="voiceBtn" onclick="startVoice()"><i class="fas fa-microphone"></i></button>
-    </div>
-
-    <div style="display:flex; gap:10px; flex-wrap:wrap;">
-      <button class="btn btn-blue" onclick="openModal('addMain')"><i class="fas fa-plus"></i> منطقة</button>
-      <button class="btn btn-purple" onclick="startPpt()"><i class="fas fa-tv"></i> عرض</button>
-      <button class="btn btn-green" onclick="printReport('current')"><i class="fas fa-print"></i> طباعة المحدد</button>
-      <button class="btn" style="background:#374151" onclick="printReport('all')"><i class="fas fa-layer-group"></i> طباعة الكل</button>
+    <div class="details-sec">
+        <div id="dTarget" style="text-align:center; font-weight:bold; margin-bottom:10px;">لم يتم التحديد</div>
+        <div style="max-height:300px; overflow-y:auto;">
+            <div style="margin-bottom:10px;">
+               <div style="display:flex; justify-content:space-between; color:var(--primary); font-weight:bold; margin-bottom:5px;">
+                  <span>الزيارات</span> <button class="icon-btn ib-edit" onclick="openM('addVisit')">+</button>
+               </div>
+               <div id="dVisits"></div>
+            </div>
+            <div style="margin-bottom:10px;">
+               <div style="display:flex; justify-content:space-between; color:var(--danger); font-weight:bold; margin-bottom:5px;">
+                  <span>المشاكل</span> <button class="icon-btn ib-del" onclick="openM('addIssue')">+</button>
+               </div>
+               <div id="dIssues"></div>
+            </div>
+            <div>
+               <div style="display:flex; justify-content:space-between; color:var(--secondary); font-weight:bold; margin-bottom:5px;">
+                  <span>الخطط</span> <button class="icon-btn ib-edit" onclick="openM('addPlan')">+</button>
+               </div>
+               <div id="dPlans"></div>
+            </div>
+        </div>
     </div>
   </div>
-
-  <div class="grid">
-    
-    <div class="card">
-      <div class="card-header">
-        <span style="color:var(--primary)">المناطق الرئيسية</span>
-        <span id="mainCount" style="background:#dbeafe; padding:2px 8px; border-radius:10px; font-size:0.8rem">0</span>
-      </div>
-      <div class="scroll" id="listMain"></div>
-    </div>
-
-    <div class="card">
-      <div class="card-header">
-        <span id="midTitle" style="color:#10b981">القرى / التوابع</span>
-        <button class="act-btn act-edit" style="width:auto; padding:0 8px;" onclick="openModal('addMid')">+ إضافة</button>
-      </div>
-      <div id="midBread" style="font-size:0.85rem; color:#9ca3af; margin-bottom:10px;">حدد منطقة رئيسية</div>
-      <div class="scroll" id="listMid"></div>
-    </div>
-
-    <div class="card">
-      <div class="card-header">
-        <span style="color:var(--accent)">التوابع والمتابعة</span>
-      </div>
-      
-      <div style="flex:1; display:flex; flex-direction:column; min-height:150px;">
-         <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-            <small style="font-weight:bold; color:#6b7280">توابع القرية</small>
-            <button class="act-btn act-edit" onclick="openModal('addSub')" style="width:auto; padding:0 8px;">+ تابع</button>
-         </div>
-         <div class="scroll" id="listSub" style="background:white; border-radius:10px; border:1px solid #f3f4f6; padding:5px;">
-            <div style="text-align:center; padding:20px; color:#d1d5db">لا توجد توابع</div>
-         </div>
-      </div>
-
-      <div class="details">
-         <div id="detailTarget" style="text-align:center; font-weight:bold; margin-bottom:10px; color:var(--primary)">لم يتم التحديد</div>
-         
-         <div style="max-height:300px; overflow-y:auto; padding-right:5px;">
-             <div style="margin-bottom:10px;">
-                <div style="display:flex; justify-content:space-between; font-weight:bold; color:#1e40af; margin-bottom:5px;">
-                   <span><i class="fas fa-user-tie"></i> الزيارات</span>
-                   <button class="act-btn act-edit" onclick="openModal('addVisit')">+</button>
-                </div>
-                <div id="contVisits"></div>
-             </div>
-             <div style="margin-bottom:10px;">
-                <div style="display:flex; justify-content:space-between; font-weight:bold; color:#dc2626; margin-bottom:5px;">
-                   <span><i class="fas fa-exclamation-triangle"></i> المشاكل</span>
-                   <button class="act-btn act-del" onclick="openModal('addIssue')">+</button>
-                </div>
-                <div id="contIssues"></div>
-             </div>
-             <div>
-                <div style="display:flex; justify-content:space-between; font-weight:bold; color:#059669; margin-bottom:5px;">
-                   <span><i class="fas fa-map"></i> الخطط</span>
-                   <button class="act-btn act-edit" onclick="openModal('addPlan')">+</button>
-                </div>
-                <div id="contPlans"></div>
-             </div>
-         </div>
-      </div>
-    </div>
-
-  </div>
+</div>
 
 <script>
-// --- DATA & STATE ---
-let allData = [];
-let filteredData = []; // For search
-let sel = { mainId: null, midId: null, subId: null, level: 'none', title: '' };
+let allData = [], filtered = [];
+let sel = { main:null, mid:null, sub:null, lvl:'none', name:'' };
 
-// --- INIT ---
-document.addEventListener("DOMContentLoaded", () => {
-    loadData();
-    document.getElementById('searchInput').addEventListener('input', (e) => doSearch(e.target.value));
-});
+window.addEventListener('firebaseLoaded', loadData);
 
 function loadData() {
-    const dbRef = window.dbRef(window.db, 'mainAreas');
-    window.dbGet(dbRef).then((snap) => {
-        if (snap.exists()) {
-            const val = snap.val();
-            allData = Object.keys(val).map(k => ({id:k, ...val[k]}));
-            filteredData = allData; // Default view
-            renderMain();
-            if(sel.mainId) restoreView();
-        } else {
-            allData = []; filteredData = [];
-            renderMain();
-        }
-    });
+  const dbRef = window.ref(window.db, 'mainAreas');
+  window.get(dbRef).then(snap => {
+    if(snap.exists()) {
+      const v = snap.val();
+      allData = Object.keys(v).map(k => ({id:k, ...v[k]}));
+      filtered = allData;
+      renderMain();
+      if(sel.main) restore();
+    } else {
+      allData = []; filtered = []; renderMain();
+    }
+  }).catch(e => {
+      document.getElementById('lMain').innerHTML = '<div style="color:red; text-align:center">خطأ في الاتصال</div>';
+      console.error(e);
+  });
 }
 
-function restoreView() {
-    selectMain(sel.mainId);
-    if(sel.midId) selectMid(sel.midId);
-    if(sel.subId) selectSub(sel.subId);
+function restore() {
+    selectMain(sel.main);
+    if(sel.mid) selectMid(sel.mid);
+    if(sel.sub) selectSub(sel.sub);
 }
 
-// --- SEARCH LOGIC (FUZZY + DEEP) ---
-function doSearch(q) {
-    q = normalize(q);
-    if(!q) { filteredData = allData; renderMain(); return; }
-    
-    // Filter Main Areas based on: Main Name OR Child Name OR Sub Name
-    filteredData = allData.filter(main => {
-        if(normalize(main.name).includes(q)) return true;
-        
-        let hasMatch = false;
-        if(main.hasVillages==='yes' && main.villages) {
-            Object.values(main.villages).forEach(v => {
-                if(normalize(v.name).includes(q)) hasMatch = true;
-                if(v.subAreas) {
-                    Object.values(v.subAreas).forEach(s => {
-                        if(normalize(s.name).includes(q)) hasMatch = true;
-                    });
-                }
-            });
-        } else if (main.directSubAreas) {
-            Object.values(main.directSubAreas).forEach(s => {
-                if(normalize(s.name).includes(q)) hasMatch = true;
-            });
-        }
-        return hasMatch;
-    });
-    renderMain();
+// دالة حساب الإحصائيات الشاملة
+function getStats(item) {
+    let i = (item.details?.issues || []).length;
+    let p = (item.details?.plans || []).length;
+
+    // حساب ما بداخل القرى
+    if (item.subAreas) {
+        Object.values(item.subAreas).forEach(s => {
+            i += (s.details?.issues || []).length;
+            p += (s.details?.plans || []).length;
+        });
+    }
+    // حساب ما بداخل المناطق الرئيسية
+    if (item.villages) {
+        Object.values(item.villages).forEach(v => {
+            i += (v.details?.issues || []).length;
+            p += (v.details?.plans || []).length;
+            if(v.subAreas) {
+                 Object.values(v.subAreas).forEach(s => {
+                    i += (s.details?.issues || []).length;
+                    p += (s.details?.plans || []).length;
+                });
+            }
+        });
+    }
+    if (item.directSubAreas) {
+         Object.values(item.directSubAreas).forEach(s => {
+            i += (s.details?.issues || []).length;
+            p += (s.details?.plans || []).length;
+        });
+    }
+    return {i, p};
 }
 
-function normalize(text) {
-    if(!text) return "";
-    return text.trim().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه');
-}
-
-function startVoice() {
-    const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if(Speech) {
-        const rec = new Speech();
-        rec.lang = 'ar-EG';
-        document.getElementById('voiceBtn').classList.add('listening');
-        rec.onresult = (e) => {
-            const txt = e.results[0][0].transcript;
-            document.getElementById('searchInput').value = txt;
-            doSearch(txt);
-            document.getElementById('voiceBtn').classList.remove('listening');
-        };
-        rec.start();
-    } else { alert("غير مدعوم في متصفحك"); }
-}
-
-// --- RENDER FUNCTIONS ---
+// --- Renders ---
 function renderMain() {
-    const list = document.getElementById('listMain');
-    document.getElementById('mainCount').innerText = filteredData.length;
-    list.innerHTML = '';
-
-    filteredData.forEach(item => {
-        const isSel = sel.mainId === item.id;
-        const subCount = item.hasVillages==='yes' 
-            ? (item.villages ? Object.keys(item.villages).length : 0) 
-            : (item.directSubAreas ? Object.keys(item.directSubAreas).length : 0);
-        const subLabel = item.hasVillages==='yes' ? 'قرية' : 'تابع';
-        const issues = countAllIssues(item);
-
-        const el = document.createElement('div');
-        el.className = `item lvl-main ${isSel?'selected':''}`;
-        el.onclick = () => selectMain(item.id);
-        
-        el.innerHTML = `
-            <div class="item-top">
-                <span class="item-name">${item.name}</span>
-                ${issues>0 ? `<span style="color:#dc2626; font-size:0.8rem; font-weight:bold"><i class="fas fa-exclamation-circle"></i> ${issues}</span>` : ''}
-            </div>
-            <div class="count-badge">${subCount} ${subLabel}</div>
-            <div class="actions">
-                <button class="act-btn" onclick="event.stopPropagation(); openModal('editMain', '${item.id}')"><i class="fas fa-pen"></i></button>
-                <button class="act-btn act-del" onclick="event.stopPropagation(); del('main', '${item.id}')"><i class="fas fa-trash"></i></button>
-            </div>
-        `;
-        list.appendChild(el);
-    });
+  const c = document.getElementById('lMain');
+  c.innerHTML = '';
+  document.getElementById('cMain').innerText = filtered.length;
+  
+  filtered.forEach(m => {
+    const isSel = sel.main === m.id;
+    const stats = getStats(m);
+    const subCount = m.hasVillages==='yes' 
+        ? (m.villages ? Object.keys(m.villages).length : 0) 
+        : (m.directSubAreas ? Object.keys(m.directSubAreas).length : 0);
+    const label = m.hasVillages==='yes' ? 'قرى' : 'توابع';
+    
+    c.innerHTML += `
+      <div class="item lvl-1 ${isSel?'selected':''}" onclick="selectMain('${m.id}')">
+        <div class="item-top">
+           <span style="font-weight:bold">${m.name}</span>
+        </div>
+        <div class="stats-container">
+           <span class="badge count">${subCount} ${label}</span>
+           ${stats.i > 0 ? `<span class="badge red">${stats.i} مشاكل</span>` : ''}
+           ${stats.p > 0 ? `<span class="badge green">${stats.p} خطط</span>` : ''}
+        </div>
+        <div class="actions">
+           <button class="icon-btn ib-edit" onclick="event.stopPropagation(); openM('editMain','${m.id}')"><i class="fas fa-pen"></i></button>
+           <button class="icon-btn ib-del" onclick="event.stopPropagation(); del('main','${m.id}')"><i class="fas fa-trash"></i></button>
+        </div>
+      </div>
+    `;
+  });
 }
 
 function renderMid() {
-    const list = document.getElementById('listMid');
-    list.innerHTML = '';
+  const c = document.getElementById('lMid');
+  c.innerHTML = '';
+  if(!sel.main) { c.innerHTML='<div style="text-align:center; color:#999">اختر منطقة</div>'; return; }
+  
+  const m = allData.find(a=>a.id===sel.main);
+  document.getElementById('tMid').innerText = m.hasVillages==='yes' ? 'القرى' : 'التوابع المباشرة';
+  
+  let items = [];
+  if(m.hasVillages==='yes' && m.villages) items = Object.keys(m.villages).map(k=>({id:k, ...m.villages[k]}));
+  else if(m.directSubAreas) items = Object.keys(m.directSubAreas).map(k=>({id:k, ...m.directSubAreas[k]}));
+  
+  items.forEach(i => {
+    const isSel = sel.mid === i.id;
+    const stats = getStats(i);
+    const subC = i.subAreas ? Object.keys(i.subAreas).length : 0;
     
-    if(!sel.mainId) { document.getElementById('midBread').innerText = "اختر منطقة"; return; }
-    
-    const main = allData.find(a=>a.id===sel.mainId);
-    document.getElementById('midBread').innerText = `داخل: ${main.name}`;
-    document.getElementById('midTitle').innerText = main.hasVillages==='yes' ? 'القرى' : 'التوابع المباشرة';
-    
-    let items = [];
-    if(main.hasVillages==='yes' && main.villages) items = Object.keys(main.villages).map(k=>({id:k, ...main.villages[k]}));
-    else if(main.directSubAreas) items = Object.keys(main.directSubAreas).map(k=>({id:k, ...main.directSubAreas[k]}));
-
-    if(items.length === 0) list.innerHTML = `<div style="text-align:center; padding:10px; color:#aaa">لا يوجد بيانات</div>`;
-
-    items.forEach(item => {
-        const isSel = sel.midId === item.id;
-        const subC = item.subAreas ? Object.keys(item.subAreas).length : 0;
-        const issues = (item.details?.issues || []).length;
-        
-        const el = document.createElement('div');
-        el.className = `item lvl-mid ${isSel?'selected':''}`;
-        el.onclick = () => selectMid(item.id);
-        
-        el.innerHTML = `
-            <div class="item-top">
-                <span class="item-name">${item.name}</span>
-                ${issues>0 ? `<span style="color:#dc2626; font-size:0.8rem">! ${issues}</span>` : ''}
-            </div>
-            ${main.hasVillages==='yes' ? `<div class="count-badge">${subC} توابع</div>` : ''}
-            <div class="actions">
-                <button class="act-btn" onclick="event.stopPropagation(); openModal('editMid', '${item.id}')"><i class="fas fa-pen"></i></button>
-                <button class="act-btn act-del" onclick="event.stopPropagation(); del('mid', '${item.id}')"><i class="fas fa-trash"></i></button>
-            </div>
-        `;
-        list.appendChild(el);
-    });
+    c.innerHTML += `
+      <div class="item lvl-2 ${isSel?'selected':''}" onclick="selectMid('${i.id}')">
+        <div class="item-top">
+           <span style="font-weight:bold">${i.name}</span>
+        </div>
+        <div class="stats-container">
+           ${m.hasVillages==='yes' ? `<span class="badge count">${subC} توابع</span>` : ''}
+           ${stats.i > 0 ? `<span class="badge red">${stats.i} مشاكل</span>` : ''}
+           ${stats.p > 0 ? `<span class="badge green">${stats.p} خطط</span>` : ''}
+        </div>
+        <div class="actions">
+           <button class="icon-btn ib-edit" onclick="event.stopPropagation(); openM('editMid','${i.id}')"><i class="fas fa-pen"></i></button>
+           <button class="icon-btn ib-del" onclick="event.stopPropagation(); del('mid','${i.id}')"><i class="fas fa-trash"></i></button>
+        </div>
+      </div>
+    `;
+  });
 }
 
 function renderSub() {
-    const list = document.getElementById('listSub');
-    list.innerHTML = '';
+  const c = document.getElementById('lSub');
+  c.innerHTML = '';
+  if(sel.lvl!=='mid' && sel.lvl!=='sub') { c.innerHTML='<div style="text-align:center; color:#999; padding:10px">اختر قرية</div>'; return; }
+  
+  const m = allData.find(a=>a.id===sel.main);
+  if(m.hasVillages!=='yes') { c.innerHTML='<div style="text-align:center; color:#999; padding:10px">لا يوجد (توابع مباشرة)</div>'; return; }
+  
+  const v = m.villages[sel.mid];
+  const items = v.subAreas ? Object.keys(v.subAreas).map(k=>({id:k, ...v.subAreas[k]})) : [];
+  
+  items.forEach(i => {
+    const isSel = sel.sub === i.id;
+    const stats = getStats(i);
     
-    if(sel.level!=='mid' && sel.level!=='sub') { list.innerHTML=`<div style="text-align:center; padding:10px; color:#aaa">اختر قرية</div>`; return; }
-    
-    const main = allData.find(a=>a.id===sel.mainId);
-    if(main.hasVillages!=='yes') { list.innerHTML=`<div style="text-align:center; padding:10px; color:#aaa">توابع مباشرة (يمين)</div>`; return; }
-    
-    const v = main.villages[sel.midId];
-    const items = v.subAreas ? Object.keys(v.subAreas).map(k=>({id:k, ...v.subAreas[k]})) : [];
-    
-    if(items.length === 0) list.innerHTML = `<div style="text-align:center; padding:10px; color:#aaa">لا يوجد توابع</div>`;
-    
-    items.forEach(item => {
-        const isSel = sel.subId === item.id;
-        const issues = (item.details?.issues||[]).length;
-        
-        const el = document.createElement('div');
-        el.className = `item lvl-sub ${isSel?'selected':''}`;
-        el.onclick = () => selectSub(item.id);
-        
-        el.innerHTML = `
-            <div class="item-top">
-                <span class="item-name" style="font-size:0.9rem">${item.name}</span>
-                ${issues>0 ? `<span style="color:#dc2626; font-size:0.8rem">! ${issues}</span>` : ''}
-            </div>
-            <div class="actions">
-                <button class="act-btn" onclick="event.stopPropagation(); openModal('editSub', '${item.id}')"><i class="fas fa-pen"></i></button>
-                <button class="act-btn act-del" onclick="event.stopPropagation(); del('sub', '${item.id}')"><i class="fas fa-trash"></i></button>
-            </div>
-        `;
-        list.appendChild(el);
-    });
+    c.innerHTML += `
+      <div class="item lvl-3 ${isSel?'selected':''}" onclick="selectSub('${i.id}')">
+        <div class="item-top">
+           <span style="font-weight:bold">${i.name}</span>
+        </div>
+        <div class="stats-container">
+           ${stats.i > 0 ? `<span class="badge red">${stats.i} مشاكل</span>` : ''}
+           ${stats.p > 0 ? `<span class="badge green">${stats.p} خطط</span>` : ''}
+        </div>
+        <div class="actions">
+           <button class="icon-btn ib-edit" onclick="event.stopPropagation(); openM('editSub','${i.id}')"><i class="fas fa-pen"></i></button>
+           <button class="icon-btn ib-del" onclick="event.stopPropagation(); del('sub','${i.id}')"><i class="fas fa-trash"></i></button>
+        </div>
+      </div>
+    `;
+  });
 }
 
-function renderDetails() {
-    const t = document.getElementById('detailTarget');
-    const cV = document.getElementById('contVisits');
-    const cI = document.getElementById('contIssues');
-    const cP = document.getElementById('contPlans');
-    cV.innerHTML=''; cI.innerHTML=''; cP.innerHTML='';
-    
-    t.innerText = sel.title || "لم يتم التحديد";
-    const obj = getActive();
-    if(!obj) return;
-    
-    const d = obj.details || {issues:[], plans:[], visits:[]};
-    
-    (d.visits||[]).forEach((v,i) => {
-        let dt = v.date || 'بدون تاريخ';
-        let txt = v.desc || v;
-        cV.innerHTML += `
-            <div class="det-row">
-               <div><span class="visit-tag">${dt}</span><div>${txt}</div></div>
-               <i class="fas fa-times" style="color:#dc2626; cursor:pointer" onclick="delDet('visit', ${i})"></i>
-            </div>`;
-    });
-    
-    (d.issues||[]).forEach((v,i) => cI.innerHTML += `<div class="det-row"><span>${v}</span><i class="fas fa-times" style="color:#dc2626; cursor:pointer" onclick="delDet('issue', ${i})"></i></div>`);
-    (d.plans||[]).forEach((v,i) => cP.innerHTML += `<div class="det-row"><span>${v}</span><i class="fas fa-times" style="color:#dc2626; cursor:pointer" onclick="delDet('plan', ${i})"></i></div>`);
+function renderDet() {
+  const obj = getActive();
+  document.getElementById('dTarget').innerText = sel.name || "لم يتم التحديد";
+  const vDiv = document.getElementById('dVisits');
+  const iDiv = document.getElementById('dIssues');
+  const pDiv = document.getElementById('dPlans');
+  vDiv.innerHTML=''; iDiv.innerHTML=''; pDiv.innerHTML='';
+  
+  if(!obj) return;
+  const d = obj.details || {issues:[],plans:[],visits:[]};
+  
+  (d.visits||[]).forEach((v,i) => {
+      let date = v.date || '-';
+      let txt = v.desc || v;
+      vDiv.innerHTML += `<div class="det-row"><div><span class="visit-tag">${date}</span> ${txt}</div><i class="fas fa-times" style="color:red;cursor:pointer" onclick="delDet('visit',${i})"></i></div>`;
+  });
+  
+  // تلوين المشاكل والخطط بالكامل
+  (d.issues||[]).forEach((v,i) => iDiv.innerHTML += `<div class="det-row"><div class="text-issue">• ${v}</div><i class="fas fa-times" style="color:red;cursor:pointer" onclick="delDet('issue',${i})"></i></div>`);
+  (d.plans||[]).forEach((v,i) => pDiv.innerHTML += `<div class="det-row"><div class="text-plan">• ${v}</div><i class="fas fa-times" style="color:red;cursor:pointer" onclick="delDet('plan',${i})"></i></div>`);
 }
 
-// --- LOGIC HELPERS ---
-function selectMain(id) {
-    const m = allData.find(a=>a.id===id);
-    sel = {mainId:id, midId:null, subId:null, level:'main', title:m.name};
-    renderMain(); renderMid(); renderSub(); renderDetails();
-}
-function selectMid(id) {
-    const m = allData.find(a=>a.id===sel.mainId);
-    let name = m.hasVillages==='yes' ? m.villages[id].name : m.directSubAreas[id].name;
-    sel.midId=id; sel.subId=null; sel.level='mid'; sel.title=name;
-    renderMid(); renderSub(); renderDetails();
-}
-function selectSub(id) {
-    const m = allData.find(a=>a.id===sel.mainId);
-    const v = m.villages[sel.midId];
-    sel.subId=id; sel.level='sub'; sel.title=v.subAreas[id].name;
-    renderSub(); renderDetails();
-}
+// --- Select ---
+function selectMain(id) { const m=allData.find(a=>a.id===id); sel={main:id,mid:null,sub:null,lvl:'main',name:m.name}; renderMain(); renderMid(); renderSub(); renderDet(); }
+function selectMid(id) { const m=allData.find(a=>a.id===sel.main); let name=m.hasVillages==='yes'?m.villages[id].name:m.directSubAreas[id].name; sel.mid=id; sel.sub=null; sel.lvl='mid'; sel.name=name; renderMid(); renderSub(); renderDet(); }
+function selectSub(id) { const m=allData.find(a=>a.id===sel.main); const v=m.villages[sel.mid]; sel.sub=id; sel.lvl='sub'; sel.name=v.subAreas[id].name; renderSub(); renderDet(); }
+
 function getActive() {
-    if(!sel.mainId) return null;
-    const m = allData.find(a=>a.id===sel.mainId);
-    if(sel.level==='main') return m;
+    if(!sel.main) return null;
+    const m = allData.find(a=>a.id===sel.main);
+    if(sel.lvl==='main') return m;
     if(m.hasVillages==='yes') {
-        if(!sel.midId) return null;
-        const v = m.villages[sel.midId];
-        if(sel.level==='mid') return v;
-        if(sel.level==='sub') return v.subAreas[sel.subId];
+        if(!sel.mid) return null;
+        const v = m.villages[sel.mid];
+        if(sel.lvl==='mid') return v;
+        if(sel.lvl==='sub') return v.subAreas[sel.sub];
     } else {
-        if(sel.level==='mid') return m.directSubAreas[sel.midId];
+        if(sel.lvl==='mid') return m.directSubAreas[sel.mid];
     }
     return null;
 }
-function countAllIssues(m) {
-    let c = (m.details?.issues||[]).length;
-    if(m.hasVillages==='yes' && m.villages) {
-        Object.values(m.villages).forEach(v => {
-            c += (v.details?.issues||[]).length;
-            if(v.subAreas) Object.values(v.subAreas).forEach(s => c += (s.details?.issues||[]).length);
-        });
-    } else if(m.directSubAreas) {
-        Object.values(m.directSubAreas).forEach(s => c += (s.details?.issues||[]).length);
-    }
-    return c;
+
+// --- Search & Voice ---
+function doSearch(q) {
+    q = q.trim().replace(/[أإآ]/g,'ا').replace(/ة/g,'ه');
+    if(!q) { filtered=allData; renderMain(); return; }
+    filtered = allData.filter(m => {
+        if(m.name.includes(q)) return true;
+        let match = false;
+        if(m.villages) Object.values(m.villages).forEach(v=>{ if(v.name.includes(q)) match=true; if(v.subAreas) Object.values(v.subAreas).forEach(s=>{ if(s.name.includes(q)) match=true; }); });
+        if(m.directSubAreas) Object.values(m.directSubAreas).forEach(s=>{ if(s.name.includes(q)) match=true; });
+        return match;
+    });
+    renderMain();
+}
+function startVoice() {
+    const S = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if(!S) { alert("غير مدعوم"); return; }
+    const r = new S(); r.lang='ar-EG'; r.start();
+    r.onresult = e => { const t = e.results[0][0].transcript; document.getElementById('search').value=t; doSearch(t); };
 }
 
-// --- PRINTING (DEEP) ---
-function printReport(mode) {
-    const area = document.getElementById('printArea');
-    let html = `<div style="text-align:center; padding:10px; border-bottom:2px solid black"><h2>تقرير المتابعة - المنزلة</h2></div>`;
+// --- CRUD ---
+let actData = {};
+function openM(act, id=null) {
+    document.getElementById('modal').style.display='flex';
+    actData = {act, id};
+    const b = document.getElementById('mBody');
+    const t = document.getElementById('mTitle');
+    let h = '';
     
-    let targets = mode==='current' ? [allData.find(a=>a.id===sel.mainId)] : allData;
-    if(!targets[0]) { alert("اختر منطقة للطباعة"); return; }
+    if(act==='addMain') { t.innerText="إضافة منطقة"; h=`<input id="f1" class="inp" placeholder="الاسم"><select id="f2" class="inp"><option value="yes">بها قرى</option><option value="no">توابع مباشرة</option></select><button class="btn btn-blue" onclick="save()">حفظ</button>`; }
+    else if(act==='addMid' || act==='addSub') { t.innerText="إضافة"; h=`<input id="f1" class="inp" placeholder="الاسم"><button class="btn btn-blue" onclick="save()">حفظ</button>`; }
+    else if(act==='addVisit') { t.innerText="زيارة"; h=`<input type="date" id="f1" class="inp"><textarea id="f2" class="inp" placeholder="الوصف"></textarea><button class="btn btn-blue" onclick="save()">حفظ</button>`; }
+    else if(act==='addIssue' || act==='addPlan') { t.innerText=act==='addIssue'?'مشكلة':'خطة'; h=`<textarea id="f1" class="inp"></textarea><button class="btn btn-blue" onclick="save()">حفظ</button>`; }
+    else if(act.includes('edit')) { t.innerText="تعديل"; h=`<input id="f1" class="inp" placeholder="الاسم الجديد"><button class="btn btn-blue" onclick="save()">تحديث</button>`; }
+    
+    b.innerHTML = h;
+}
+
+function save() {
+    const {act, id} = actData;
+    const f1 = document.getElementById('f1').value;
+    const f2 = document.getElementById('f2')?.value;
+    
+    if(act==='addMain') window.set(window.push(window.ref(window.db, 'mainAreas')), {name:f1, hasVillages:f2});
+    else if(act==='editMain') window.update(window.ref(window.db, `mainAreas/${id}`), {name:f1});
+    else if(act==='addMid') {
+        const m = allData.find(a=>a.id===sel.main);
+        const p = `mainAreas/${m.id}/${m.hasVillages==='yes'?'villages':'directSubAreas'}`;
+        window.set(window.push(window.ref(window.db, p)), {name:f1});
+    }
+    else if(act==='editMid') {
+        const m = allData.find(a=>a.id===sel.main);
+        window.update(window.ref(window.db, `mainAreas/${m.id}/${m.hasVillages==='yes'?'villages':'directSubAreas'}/${id}`), {name:f1});
+    }
+    else if(act==='addSub') window.set(window.push(window.ref(window.db, `mainAreas/${sel.main}/villages/${sel.mid}/subAreas`)), {name:f1});
+    else if(act==='editSub') window.update(window.ref(window.db, `mainAreas/${sel.main}/villages/${sel.mid}/subAreas/${id}`), {name:f1});
+    else if(act==='addVisit') {
+        const o = getActive(); let arr = o.details?.visits||[];
+        arr.push({date:f1, desc:f2});
+        window.set(window.ref(window.db, getPath()+'/visits'), arr);
+    }
+    else if(act==='addIssue' || act==='addPlan') {
+        const t = act==='addIssue'?'issues':'plans';
+        const o = getActive(); let arr = o.details?.[t]||[];
+        arr.push(f1);
+        window.set(window.ref(window.db, getPath()+'/'+t), arr);
+    }
+    
+    document.getElementById('modal').style.display='none';
+    setTimeout(loadData, 500);
+}
+
+function del(lvl, id) {
+    if(!confirm("حذف؟")) return;
+    let p = `mainAreas/${id}`;
+    if(lvl==='mid') { const m=allData.find(a=>a.id===sel.main); p=`mainAreas/${m.id}/${m.hasVillages==='yes'?'villages':'directSubAreas'}/${id}`; }
+    if(lvl==='sub') p=`mainAreas/${sel.main}/villages/${sel.mid}/subAreas/${id}`;
+    window.remove(window.ref(window.db, p));
+    setTimeout(()=>{ if(lvl==='main') sel.main=null; loadData(); }, 500);
+}
+
+function delDet(t, i) {
+    if(!confirm("حذف؟")) return;
+    const o = getActive();
+    let arr = t==='visit' ? o.details.visits : (t==='issue' ? o.details.issues : o.details.plans);
+    arr.splice(i, 1);
+    let key = t==='visit'?'visits':(t+'s');
+    window.set(window.ref(window.db, getPath()+'/'+key), arr);
+    setTimeout(loadData, 300);
+}
+
+function getPath() {
+    let p = `mainAreas/${sel.main}`;
+    const m = allData.find(a=>a.id===sel.main);
+    if(sel.lvl==='mid') p += `/${m.hasVillages==='yes'?'villages':'directSubAreas'}/${sel.mid}`;
+    else if(sel.lvl==='sub') p += `/villages/${sel.mid}/subAreas/${sel.sub}`;
+    return p + '/details';
+}
+
+// --- Print & PPT ---
+function printR(mode) {
+    const area = document.getElementById('printArea');
+    let html = `<div class="p-title"><h2>تقرير المتابعة - المنزلة</h2></div>`;
+    let targets = mode==='curr' ? [allData.find(a=>a.id===sel.main)] : allData;
+    
+    if(!targets[0]) { alert('حدد منطقة'); return; }
     
     targets.forEach(m => {
-        html += `<div class="p-page">
-            <h3>منطقة: ${m.name}</h3>
-            ${getPrintDet(m.details)}
-            `;
-            
-        let mids = [];
-        if(m.hasVillages==='yes' && m.villages) mids = Object.values(m.villages);
-        else if(m.directSubAreas) mids = Object.values(m.directSubAreas);
+        html += `<div class="p-page"><h3>${m.name}</h3>${printDet(m.details)}`;
         
-        if(mids.length > 0) {
-            html += `<table class="p-table"><thead><tr><th>الاسم (قرية/تابع)</th><th>التفاصيل والمشاكل</th></tr></thead><tbody>`;
-            mids.forEach(md => {
-                let subHTML = '';
-                if(md.subAreas) {
-                    subHTML += `<table class="p-sub-table">`;
-                    Object.values(md.subAreas).forEach(sb => {
-                        subHTML += `<tr><td><b>تابع: ${sb.name}</b><br>${getPrintDet(sb.details)}</td></tr>`;
+        let kids = [];
+        if(m.hasVillages==='yes' && m.villages) kids = Object.values(m.villages);
+        else if(m.directSubAreas) kids = Object.values(m.directSubAreas);
+        
+        if(kids.length) {
+            html += `<table><thead><tr><th>الاسم</th><th>التفاصيل</th></tr></thead><tbody>`;
+            kids.forEach(k => {
+                let subH = '';
+                if(k.subAreas) {
+                    Object.values(k.subAreas).forEach(s => {
+                        subH += `<div style="border-top:1px dashed #ccc; margin-top:5px; padding-top:5px;"><b>• تابع: ${s.name}</b>${printDet(s.details)}</div>`;
                     });
-                    subHTML += `</table>`;
                 }
-                
-                html += `<tr>
-                    <td style="width:25%"><b>${md.name}</b></td>
-                    <td>
-                        ${getPrintDet(md.details)}
-                        ${subHTML}
-                    </td>
-                </tr>`;
+                html += `<tr><td style="width:25%"><b>${k.name}</b></td><td>${printDet(k.details)}${subH}</td></tr>`;
             });
             html += `</tbody></table>`;
         }
@@ -609,180 +601,56 @@ function printReport(mode) {
     window.print();
 }
 
-function getPrintDet(d) {
+function printDet(d) {
     if(!d) return '';
-    let h = '<ul style="margin:5px 0; padding-right:15px; font-size:0.9em">';
-    if(d.issues?.length) h+=`<li style="color:red"><b>مشاكل:</b> ${d.issues.join(', ')}</li>`;
-    if(d.plans?.length) h+=`<li style="color:green"><b>خطط:</b> ${d.plans.join(', ')}</li>`;
-    if(d.visits?.length) h+=`<li style="color:blue"><b>زيارات:</b> ${d.visits.map(v=>`${v.date} (${v.desc})`).join(' | ')}</li>`;
-    h += '</ul>';
+    let h = '';
+    // مشاكل بالأحمر بالكامل
+    if(d.issues?.length) { 
+        h += `<div class="print-red">المشاكل:</div><ul>`; 
+        d.issues.forEach(x=>h+=`<li class="print-red">${x}</li>`); 
+        h+=`</ul>`; 
+    }
+    // خطط بالأخضر بالكامل
+    if(d.plans?.length) { 
+        h += `<div class="print-green">الخطط:</div><ul>`; 
+        d.plans.forEach(x=>h+=`<li class="print-green">${x}</li>`); 
+        h+=`</ul>`; 
+    }
+    // زيارات
+    if(d.visits?.length) { 
+        h += `<div class="print-blue">الزيارات:</div><ul>`; 
+        d.visits.forEach(x=>h+=`<li>${x.date}: ${x.desc||x}</li>`); 
+        h+=`</ul>`; 
+    }
     return h;
 }
 
-// --- PPT (DEEP) ---
-let slides=[]; let sIdx=0;
-function startPpt() {
+let slides=[], sIdx=0;
+function ppt() {
     slides = [];
-    let targets = sel.mainId ? [allData.find(a=>a.id===sel.mainId)] : allData;
-    
-    // Slide 1: Intro
-    slides.push(`<h1 style="text-align:center; margin-top:20%">تقرير المتابعة الميدانية</h1><h3 style="text-align:center">مركز المنزلة</h3>`);
+    let targets = sel.main ? [allData.find(a=>a.id===sel.main)] : allData;
     
     targets.forEach(m => {
-        // Slide per Main Area
-        let issues = countAllIssues(m);
-        slides.push(`
-            <div class="ppt-h">منطقة رئيسية: ${m.name}</div>
-            <div style="font-size:1.5rem; margin-bottom:20px;">عدد المشاكل الكلي: <b style="color:red">${issues}</b></div>
-            <h3>الملاحظات العامة:</h3>
-            ${getPrintDet(m.details)}
-        `);
+        slides.push(`<div class="ppt-h">${m.name}</div>${printDet(m.details)}`);
         
-        // Children Slides
-        let mids = [];
-        if(m.hasVillages==='yes' && m.villages) mids = Object.values(m.villages);
-        else if(m.directSubAreas) mids = Object.values(m.directSubAreas);
+        let kids = [];
+        if(m.hasVillages==='yes' && m.villages) kids = Object.values(m.villages);
+        else if(m.directSubAreas) kids = Object.values(m.directSubAreas);
         
-        mids.forEach(md => {
-            let subTxt = "";
-            if(md.subAreas) {
-                Object.values(md.subAreas).forEach(s => {
-                    subTxt += `<div style="background:#f9fafb; padding:10px; margin-bottom:10px; border-radius:10px;">
-                        <b>تابع: ${s.name}</b>
-                        ${getPrintDet(s.details)}
-                    </div>`;
-                });
-            }
-            
-            slides.push(`
-                <div class="ppt-h" style="color:#10b981">${md.name} <span style="font-size:0.8em; color:#666">(داخل ${m.name})</span></div>
-                ${getPrintDet(md.details)}
-                ${subTxt ? '<h3>التوابع:</h3>'+subTxt : ''}
-            `);
+        kids.forEach(k => {
+            let subH = '';
+            if(k.subAreas) Object.values(k.subAreas).forEach(s => subH += `<div><b>${s.name}</b>${printDet(s.details)}</div><hr>`);
+            slides.push(`<div class="ppt-h">${k.name} <small>(${m.name})</small></div>${printDet(k.details)}${subH}`);
         });
     });
     
-    sIdx=0; document.getElementById('pptOverlay').style.display='flex'; renderSlide();
+    if(!slides.length) slides.push('لا توجد بيانات');
+    sIdx=0; document.getElementById('ppt').style.display='flex'; renS();
 }
-function renderSlide() { document.getElementById('pptContent').innerHTML=`<div class="ppt-card animate__animated animate__fadeIn">${slides[sIdx]}</div>`; document.getElementById('pptCounter').innerText=`${sIdx+1}/${slides.length}`; }
-function nextSlide() { if(sIdx<slides.length-1){sIdx++; renderSlide();} }
-function prevSlide() { if(sIdx>0){sIdx--; renderSlide();} }
-function closePpt() { document.getElementById('pptOverlay').style.display='none'; }
+function renS() { document.getElementById('pptContent').innerHTML=`<div class="ppt-card animate__animated animate__zoomIn">${slides[sIdx]}</div>`; }
+function slide(d) { sIdx+=d; if(sIdx<0) sIdx=0; if(sIdx>=slides.length) sIdx=slides.length-1; renS(); }
 
-// --- CRUD ---
-let pen = {};
-function openModal(act, id1=null) {
-    const m = document.getElementById('entryModal');
-    m.style.display='flex';
-    m.onclick=(e)=>{if(e.target===m)m.style.display='none'};
-    pen = {act, id1};
-    
-    const b = document.getElementById('modalBody');
-    const t = document.getElementById('modalTitle');
-    let h = '';
-    
-    if(act==='addMain') {
-        t.innerText="إضافة منطقة";
-        h=`<input id="f_n" class="inp" placeholder="الاسم"><select id="f_t" class="inp"><option value="yes">بها قرى</option><option value="no">توابع مباشرة</option></select><button class="btn btn-blue" style="width:100%" onclick="sv()">حفظ</button>`;
-    }
-    else if(act==='addMid') {
-        t.innerText="إضافة";
-        h=`<input id="f_n" class="inp" placeholder="الاسم"><button class="btn btn-blue" style="width:100%" onclick="sv()">حفظ</button>`;
-    }
-    else if(act==='addSub') {
-        t.innerText="إضافة تابع";
-        h=`<input id="f_n" class="inp" placeholder="الاسم"><button class="btn btn-blue" style="width:100%" onclick="sv()">حفظ</button>`;
-    }
-    else if(act==='addVisit') {
-        t.innerText="زيارة جديدة";
-        h=`<input type="date" id="f_d" class="inp"><textarea id="f_txt" class="inp" placeholder="التفاصيل"></textarea><button class="btn btn-blue" style="width:100%" onclick="sv()">حفظ</button>`;
-    }
-    else if(act==='addIssue' || act==='addPlan') {
-        t.innerText=act==='addIssue'?"مشكلة":"خطة";
-        h=`<textarea id="f_txt" class="inp"></textarea><button class="btn btn-blue" style="width:100%" onclick="sv()">حفظ</button>`;
-    }
-    // Edit wrappers omitted for brevity but logic is same as previous, just call dbUpdate
-    else if(act.startsWith('edit')) {
-        t.innerText="تعديل";
-        h=`<input id="f_n" class="inp" placeholder="الاسم الجديد"><button class="btn btn-blue" style="width:100%" onclick="sv()">تحديث</button>`;
-    }
-    b.innerHTML=h;
-}
-
-function sv() {
-    const act=pen.act; const n=document.getElementById('f_n')?.value;
-    const txt=document.getElementById('f_txt')?.value; const dt=document.getElementById('f_d')?.value;
-    
-    if(act==='addMain') {
-        const type=document.getElementById('f_t').value;
-        window.dbSet(window.dbPush(window.dbRef(window.db, 'mainAreas')), {name:n, hasVillages:type});
-    }
-    else if(act==='editMain') window.dbUpdate(window.dbRef(window.db, `mainAreas/${pen.id1}`), {name:n});
-    else if(act==='addMid') {
-        const m = allData.find(a=>a.id===sel.mainId);
-        const path = `mainAreas/${m.id}/${m.hasVillages==='yes'?'villages':'directSubAreas'}`;
-        window.dbSet(window.dbPush(window.dbRef(window.db, path)), {name:n});
-    }
-    else if(act==='editMid') {
-        const m = allData.find(a=>a.id===sel.mainId);
-        const path = `mainAreas/${m.id}/${m.hasVillages==='yes'?'villages':'directSubAreas'}/${pen.id1}`;
-        window.dbUpdate(window.dbRef(window.db, path), {name:n});
-    }
-    else if(act==='addSub') {
-        const path = `mainAreas/${sel.mainId}/villages/${sel.midId}/subAreas`;
-        window.dbSet(window.dbPush(window.dbRef(window.db, path)), {name:n});
-    }
-    else if(act==='editSub') {
-        const path = `mainAreas/${sel.mainId}/villages/${sel.midId}/subAreas/${pen.id1}`;
-        window.dbUpdate(window.dbRef(window.db, path), {name:n});
-    }
-    else if(act==='addVisit') {
-        const obj=getActive(); let arr=obj.details?.visits||[];
-        arr.push({date:dt, desc:txt});
-        window.dbSet(window.dbRef(window.db, getPath()+'/visits'), arr);
-    }
-    else if(act==='addIssue' || act==='addPlan') {
-        const t=act==='addIssue'?'issues':'plans';
-        const obj=getActive(); let arr=obj.details?.[t]||[];
-        arr.push(txt);
-        window.dbSet(window.dbRef(window.db, getPath()+'/'+t), arr);
-    }
-    document.getElementById('entryModal').style.display='none';
-    setTimeout(loadData, 500);
-}
-
-function del(lvl, id) {
-    if(!confirm("حذف؟")) return;
-    let p = `mainAreas/${id}`;
-    if(lvl==='mid') {
-        const m = allData.find(a=>a.id===sel.mainId);
-        p = `mainAreas/${m.id}/${m.hasVillages==='yes'?'villages':'directSubAreas'}/${id}`;
-    }
-    else if(lvl==='sub') p = `mainAreas/${sel.mainId}/villages/${sel.midId}/subAreas/${id}`;
-    
-    window.dbRemove(window.dbRef(window.db, p));
-    setTimeout(()=>{
-        if(lvl==='main') sel={mainId:null, midId:null, subId:null, level:'none'};
-        loadData();
-    }, 500);
-}
-
-function delDet(t, i) {
-    if(!confirm("حذف؟")) return;
-    const obj=getActive(); let arr=obj.details?.[t+'s']||obj.details?.[t];
-    arr.splice(i,1);
-    window.dbSet(window.dbRef(window.db, getPath()+'/'+(t==='visit'?'visits':t+'s')), arr);
-    setTimeout(loadData, 300);
-}
-
-function getPath() {
-    let p = `mainAreas/${sel.mainId}`;
-    const m = allData.find(a=>a.id===sel.mainId);
-    if(sel.level==='mid') p += `/${m.hasVillages==='yes'?'villages':'directSubAreas'}/${sel.midId}`;
-    else if(sel.level==='sub') p += `/villages/${sel.midId}/subAreas/${sel.subId}`;
-    return p + '/details';
-}
-
+document.getElementById('modal').onclick = e => { if(e.target.id==='modal') document.getElementById('modal').style.display='none'; }
 </script>
 </body>
 </html>
