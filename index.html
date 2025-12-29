@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
-  <title>نظام إدارة المنزلة (النسخة الكاملة)</title>
+  <title>نظام إدارة المنزلة (النسخة النهائية - بحث ذكي)</title>
   
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -83,16 +83,15 @@
 
     .item-top { display: flex; justify-content: space-between; align-items: center; }
     
-    /* العدادات الجديدة */
     .stats-container { display: flex; gap: 5px; margin-top: 8px; flex-wrap: wrap; }
     
     .badge { 
       font-size: 0.7rem; padding: 3px 8px; border-radius: 6px; font-weight: bold; 
       display: flex; align-items: center; gap: 4px; border: 1px solid transparent;
     }
-    .badge.count { background: #f1f5f9; color: #475569; border-color: #e2e8f0; } /* رمادي للقري */
-    .badge.red { background: #fef2f2; color: #dc2626; border-color: #fecaca; }   /* أحمر للمشاكل */
-    .badge.green { background: #f0fdf4; color: #16a34a; border-color: #bbf7d0; } /* أخضر للخطط */
+    .badge.count { background: #f1f5f9; color: #475569; border-color: #e2e8f0; } 
+    .badge.red { background: #fef2f2; color: #dc2626; border-color: #fecaca; }   
+    .badge.green { background: #f0fdf4; color: #16a34a; border-color: #bbf7d0; } 
     
     .actions { display: flex; gap: 5px; margin-top: 8px; justify-content: flex-end; opacity: 0.5; }
     .item:hover .actions { opacity: 1; }
@@ -110,7 +109,6 @@
       border: 1px solid #e2e8f0; font-size: 0.95rem; display: flex; justify-content: space-between;
     }
     
-    /* تلوين النصوص بالكامل */
     .text-issue { color: #dc2626; font-weight: bold; }
     .text-plan { color: #16a34a; font-weight: bold; }
     .visit-tag { background: #e0e7ff; color: var(--primary); font-size: 0.75rem; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
@@ -124,7 +122,6 @@
       .p-page { page-break-after: always; margin-bottom: 20px; border-bottom: 1px dashed #000; }
       .p-title { text-align: center; border-bottom: 2px solid black; padding-bottom: 10px; margin-bottom: 20px; }
       
-      /* إجبار الألوان في الطباعة */
       .print-red { color: #dc2626 !important; font-weight: bold; -webkit-print-color-adjust: exact; }
       .print-green { color: #16a34a !important; font-weight: bold; -webkit-print-color-adjust: exact; }
       .print-blue { color: #2563eb !important; -webkit-print-color-adjust: exact; }
@@ -191,10 +188,10 @@
 <div class="header">
   <div>
     <h1 style="margin:0; color:#1e293b">نظام إدارة المنزلة</h1>
-    <small style="color:#64748b">عدادات تفصيلية | ألوان مميزة</small>
+    <small style="color:#64748b">بحث شامل | طباعة ملونة</small>
   </div>
   <div class="search-wrapper">
-    <input id="search" class="search-input" placeholder="بحث ذكي..." oninput="doSearch(this.value)">
+    <input id="search" class="search-input" placeholder="بحث شامل (مناطق، قرى، مشاكل، خطط)..." oninput="doSearch(this.value)">
     <i class="fas fa-microphone" style="cursor:pointer; color:var(--primary)" onclick="startVoice()"></i>
   </div>
   <div style="display:flex; gap:10px; flex-wrap:wrap">
@@ -290,38 +287,84 @@ function restore() {
     if(sel.sub) selectSub(sel.sub);
 }
 
-// دالة حساب الإحصائيات الشاملة
 function getStats(item) {
     let i = (item.details?.issues || []).length;
     let p = (item.details?.plans || []).length;
-
-    // حساب ما بداخل القرى
     if (item.subAreas) {
-        Object.values(item.subAreas).forEach(s => {
-            i += (s.details?.issues || []).length;
-            p += (s.details?.plans || []).length;
-        });
+        Object.values(item.subAreas).forEach(s => { i += (s.details?.issues || []).length; p += (s.details?.plans || []).length; });
     }
-    // حساب ما بداخل المناطق الرئيسية
     if (item.villages) {
         Object.values(item.villages).forEach(v => {
-            i += (v.details?.issues || []).length;
-            p += (v.details?.plans || []).length;
-            if(v.subAreas) {
-                 Object.values(v.subAreas).forEach(s => {
-                    i += (s.details?.issues || []).length;
-                    p += (s.details?.plans || []).length;
-                });
-            }
+            i += (v.details?.issues || []).length; p += (v.details?.plans || []).length;
+            if(v.subAreas) Object.values(v.subAreas).forEach(s => { i += (s.details?.issues || []).length; p += (s.details?.plans || []).length; });
         });
     }
     if (item.directSubAreas) {
-         Object.values(item.directSubAreas).forEach(s => {
-            i += (s.details?.issues || []).length;
-            p += (s.details?.plans || []).length;
-        });
+         Object.values(item.directSubAreas).forEach(s => { i += (s.details?.issues || []).length; p += (s.details?.plans || []).length; });
     }
     return {i, p};
+}
+
+// --- SEARCH ENGINE (Updated) ---
+function normalize(text) {
+    if(!text) return "";
+    return text.toString().trim()
+        .replace(/[أإآ]/g, 'ا') // توحيد الألف
+        .replace(/ة/g, 'ه');    // توحيد التاء المربوطة
+}
+
+function checkDet(d, q) {
+    if(!d) return false;
+    // بحث في المشاكل
+    if(d.issues && d.issues.some(x => normalize(x).includes(q))) return true;
+    // بحث في الخطط
+    if(d.plans && d.plans.some(x => normalize(x).includes(q))) return true;
+    return false;
+}
+
+function doSearch(q) {
+    q = normalize(q);
+    if(!q) { filtered=allData; renderMain(); return; }
+    
+    filtered = allData.filter(m => {
+        // 1. بحث في اسم المنطقة الرئيسية وتفاصيلها
+        if(normalize(m.name).includes(q)) return true;
+        if(checkDet(m.details, q)) return true;
+        
+        let match = false;
+        
+        // 2. بحث في القرى وتوابعها
+        if(m.villages) {
+            Object.values(m.villages).forEach(v => {
+                if(normalize(v.name).includes(q)) match=true;
+                if(checkDet(v.details, q)) match=true;
+                if(v.subAreas) {
+                    Object.values(v.subAreas).forEach(s => {
+                        if(normalize(s.name).includes(q)) match=true;
+                        if(checkDet(s.details, q)) match=true;
+                    });
+                }
+            });
+        }
+        
+        // 3. بحث في التوابع المباشرة
+        if(m.directSubAreas) {
+            Object.values(m.directSubAreas).forEach(s => {
+                if(normalize(s.name).includes(q)) match=true;
+                if(checkDet(s.details, q)) match=true;
+            });
+        }
+        
+        return match;
+    });
+    renderMain();
+}
+
+function startVoice() {
+    const S = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if(!S) { alert("غير مدعوم"); return; }
+    const r = new S(); r.lang='ar-EG'; r.start();
+    r.onresult = e => { const t = e.results[0][0].transcript; document.getElementById('search').value=t; doSearch(t); };
 }
 
 // --- Renders ---
@@ -333,9 +376,7 @@ function renderMain() {
   filtered.forEach(m => {
     const isSel = sel.main === m.id;
     const stats = getStats(m);
-    const subCount = m.hasVillages==='yes' 
-        ? (m.villages ? Object.keys(m.villages).length : 0) 
-        : (m.directSubAreas ? Object.keys(m.directSubAreas).length : 0);
+    const subCount = m.hasVillages==='yes' ? (m.villages?Object.keys(m.villages).length:0) : (m.directSubAreas?Object.keys(m.directSubAreas).length:0);
     const label = m.hasVillages==='yes' ? 'قرى' : 'توابع';
     
     c.innerHTML += `
@@ -407,7 +448,6 @@ function renderSub() {
   items.forEach(i => {
     const isSel = sel.sub === i.id;
     const stats = getStats(i);
-    
     c.innerHTML += `
       <div class="item lvl-3 ${isSel?'selected':''}" onclick="selectSub('${i.id}')">
         <div class="item-top">
@@ -443,7 +483,6 @@ function renderDet() {
       vDiv.innerHTML += `<div class="det-row"><div><span class="visit-tag">${date}</span> ${txt}</div><i class="fas fa-times" style="color:red;cursor:pointer" onclick="delDet('visit',${i})"></i></div>`;
   });
   
-  // تلوين المشاكل والخطط بالكامل
   (d.issues||[]).forEach((v,i) => iDiv.innerHTML += `<div class="det-row"><div class="text-issue">• ${v}</div><i class="fas fa-times" style="color:red;cursor:pointer" onclick="delDet('issue',${i})"></i></div>`);
   (d.plans||[]).forEach((v,i) => pDiv.innerHTML += `<div class="det-row"><div class="text-plan">• ${v}</div><i class="fas fa-times" style="color:red;cursor:pointer" onclick="delDet('plan',${i})"></i></div>`);
 }
@@ -466,26 +505,6 @@ function getActive() {
         if(sel.lvl==='mid') return m.directSubAreas[sel.mid];
     }
     return null;
-}
-
-// --- Search & Voice ---
-function doSearch(q) {
-    q = q.trim().replace(/[أإآ]/g,'ا').replace(/ة/g,'ه');
-    if(!q) { filtered=allData; renderMain(); return; }
-    filtered = allData.filter(m => {
-        if(m.name.includes(q)) return true;
-        let match = false;
-        if(m.villages) Object.values(m.villages).forEach(v=>{ if(v.name.includes(q)) match=true; if(v.subAreas) Object.values(v.subAreas).forEach(s=>{ if(s.name.includes(q)) match=true; }); });
-        if(m.directSubAreas) Object.values(m.directSubAreas).forEach(s=>{ if(s.name.includes(q)) match=true; });
-        return match;
-    });
-    renderMain();
-}
-function startVoice() {
-    const S = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if(!S) { alert("غير مدعوم"); return; }
-    const r = new S(); r.lang='ar-EG'; r.start();
-    r.onresult = e => { const t = e.results[0][0].transcript; document.getElementById('search').value=t; doSearch(t); };
 }
 
 // --- CRUD ---
@@ -604,19 +623,16 @@ function printR(mode) {
 function printDet(d) {
     if(!d) return '';
     let h = '';
-    // مشاكل بالأحمر بالكامل
     if(d.issues?.length) { 
         h += `<div class="print-red">المشاكل:</div><ul>`; 
         d.issues.forEach(x=>h+=`<li class="print-red">${x}</li>`); 
         h+=`</ul>`; 
     }
-    // خطط بالأخضر بالكامل
     if(d.plans?.length) { 
         h += `<div class="print-green">الخطط:</div><ul>`; 
         d.plans.forEach(x=>h+=`<li class="print-green">${x}</li>`); 
         h+=`</ul>`; 
     }
-    // زيارات
     if(d.visits?.length) { 
         h += `<div class="print-blue">الزيارات:</div><ul>`; 
         d.visits.forEach(x=>h+=`<li>${x.date}: ${x.desc||x}</li>`); 
