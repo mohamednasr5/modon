@@ -248,7 +248,7 @@
             </div>
             <div>
                <div style="display:flex; justify-content:space-between; color:var(--secondary); font-weight:bold; margin-bottom:5px;">
-                  <span>الخطط</span> <button class="icon-btn ib-edit" onclick="openM('addPlan')">+</button>
+                  <span>إقتراحات حياة كريمة</span> <button class="icon-btn ib-edit" onclick="openM('addPlan')">+</button>
                </div>
                <div id="dPlans"></div>
             </div>
@@ -629,7 +629,7 @@ function printDet(d) {
         h+=`</ul>`; 
     }
     if(d.plans?.length) { 
-        h += `<div class="print-green">الخطط:</div><ul>`; 
+        h += `<div class="print-green">إقتراحات حياة كريمة:</div><ul>`; 
         d.plans.forEach(x=>h+=`<li class="print-green">${x}</li>`); 
         h+=`</ul>`; 
     }
