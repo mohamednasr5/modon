@@ -128,6 +128,15 @@
     .text-plan { color: #16a34a; font-weight: bold; }
     .visit-tag { background: #e0e7ff; color: var(--primary); font-size: 0.75rem; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
 
+    /* === Search Highlight === */
+    .highlight {
+      background-color: #fef3c7;
+      padding: 0 2px;
+      border-radius: 3px;
+      font-weight: bold;
+      color: #92400e;
+    }
+
     /* === Login Screen === */
     .login-screen {
       position: fixed; inset: 0; background: linear-gradient(135deg, var(--primary), var(--secondary));
@@ -387,6 +396,7 @@
 <script>
 let allData = [], filtered = [];
 let sel = { main:null, mid:null, sub:null, lvl:'none', name:'' };
+let searchQuery = ''; // تخزين الاستعلام الحالي للبحث
 
 window.addEventListener('firebaseLoaded', loadData);
 
@@ -398,6 +408,9 @@ function loadData() {
       allData = Object.keys(v).map(k => ({id:k, ...v[k]}));
       filtered = allData;
       renderMain();
+      renderMid();
+      renderSub();
+      renderDet();
       if(sel.main) restore();
     } else {
       allData = []; filtered = []; renderMain();
@@ -449,21 +462,44 @@ function normalizeForSearch(text) {
         .replace(/ى/g, 'ي')
         // تحويل الياء المنقوطة إلى ياء عادية
         .replace(/ئ/g, 'ي')
+        // تحويل الكاف الفارسية
+        .replace(/ك/g, 'ك')
         // مسح المسافات الزائدة
         .replace(/\s+/g, ' ')
         // حذف أي رموز غير عربية أو أرقام (اختياري)
         .replace(/[^\u0600-\u06FF\s0-9]/g, '');
 }
 
-// دالة البحث الذكية
+// دالة لتظليل النص المطابق
+function highlightText(text, query) {
+    if (!query || !text) return text;
+    
+    const normalizedText = normalizeForSearch(text);
+    const normalizedQuery = normalizeForSearch(query);
+    
+    if (!normalizedText.includes(normalizedQuery)) return text;
+    
+    // البحث عن المواضع المطابقة في النص الأصلي
+    const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    return text.replace(regex, '<span class="highlight">$1</span>');
+}
+
+// دالة البحث الذكية المحسنة
 function doSearch(q) {
+    searchQuery = q;
+    
     if(!q || q.trim() === '') { 
         filtered = allData; 
-        renderMain(); 
+        renderMain();
+        renderMid();
+        renderSub();
+        renderDet();
         return; 
     }
     
     const normalizedQuery = normalizeForSearch(q);
+    
+    // تصفية المناطق الرئيسية بناء على البحث في جميع المستويات
     filtered = [];
     
     allData.forEach(mainArea => {
@@ -516,7 +552,11 @@ function doSearch(q) {
         }
     });
     
+    // تحديث جميع الأقسام مع التظليل
     renderMain();
+    renderMid();
+    renderSub();
+    renderDet();
 }
 
 // دالة البحث في عنصر واحد (منطقة/قرية/تابع)
@@ -597,10 +637,13 @@ function renderMain() {
     const subCount = m.hasVillages==='yes' ? (m.villages?Object.keys(m.villages).length:0) : (m.directSubAreas?Object.keys(m.directSubAreas).length:0);
     const label = m.hasVillages==='yes' ? 'قرى' : 'توابع';
     
+    // استخدام التظليل للاسم إذا كان هناك بحث
+    const nameDisplay = searchQuery ? highlightText(m.name, searchQuery) : m.name;
+    
     c.innerHTML += `
       <div class="item lvl-1 ${isSel?'selected':''}" onclick="selectMain('${m.id}')">
         <div class="item-top">
-           <span style="font-weight:bold">${m.name}</span>
+           <span style="font-weight:bold">${nameDisplay}</span>
         </div>
         <div class="stats-container">
            <span class="badge count">${subCount} ${label}</span>
@@ -619,69 +662,185 @@ function renderMain() {
 function renderMid() {
   const c = document.getElementById('lMid');
   c.innerHTML = '';
-  if(!sel.main) { c.innerHTML='<div style="text-align:center; color:#999">اختر منطقة</div>'; return; }
   
-  const m = allData.find(a=>a.id===sel.main);
-  document.getElementById('tMid').innerText = m.hasVillages==='yes' ? 'القرى' : 'التوابع المباشرة';
-  
-  let items = [];
-  if(m.hasVillages==='yes' && m.villages) items = Object.keys(m.villages).map(k=>({id:k, ...m.villages[k]}));
-  else if(m.directSubAreas) items = Object.keys(m.directSubAreas).map(k=>({id:k, ...m.directSubAreas[k]}));
-  
-  items.forEach(i => {
-    const isSel = sel.mid === i.id;
-    const stats = getStats(i);
-    const subC = i.subAreas ? Object.keys(i.subAreas).length : 0;
+  // إذا كان هناك بحث، عرض كل العناصر المطابقة
+  if (searchQuery && searchQuery.trim() !== '') {
+    const normalizedQuery = normalizeForSearch(searchQuery);
+    const allMidItems = [];
     
-    c.innerHTML += `
-      <div class="item lvl-2 ${isSel?'selected':''}" onclick="selectMid('${i.id}')">
-        <div class="item-top">
-           <span style="font-weight:bold">${i.name}</span>
+    allData.forEach(m => {
+      if(m.hasVillages==='yes' && m.villages) {
+        Object.keys(m.villages).forEach(k => {
+          const village = m.villages[k];
+          if(searchItem(village, normalizedQuery)) {
+            allMidItems.push({...village, id: k, mainId: m.id});
+          }
+        });
+      } else if(m.directSubAreas) {
+        Object.keys(m.directSubAreas).forEach(k => {
+          const sub = m.directSubAreas[k];
+          if(searchItem(sub, normalizedQuery)) {
+            allMidItems.push({...sub, id: k, mainId: m.id});
+          }
+        });
+      }
+    });
+    
+    document.getElementById('tMid').innerText = `نتائج البحث (${allMidItems.length})`;
+    
+    if(allMidItems.length === 0) {
+      c.innerHTML = '<div style="text-align:center; color:#999; padding:20px">لا توجد نتائج للبحث في هذا القسم</div>';
+    } else {
+      allMidItems.forEach(i => {
+        const isSel = sel.main === i.mainId && sel.mid === i.id;
+        const stats = getStats(i);
+        const subC = i.subAreas ? Object.keys(i.subAreas).length : 0;
+        const nameDisplay = searchQuery ? highlightText(i.name, searchQuery) : i.name;
+        
+        c.innerHTML += `
+          <div class="item lvl-2 ${isSel?'selected':''}" onclick="selectMidFromSearch('${i.mainId}', '${i.id}')">
+            <div class="item-top">
+               <span style="font-weight:bold">${nameDisplay}</span>
+            </div>
+            <div class="stats-container">
+               ${subC > 0 ? `<span class="badge count">${subC} توابع</span>` : ''}
+               ${stats.i > 0 ? `<span class="badge red">${stats.i} مشاكل</span>` : ''}
+               ${stats.p > 0 ? `<span class="badge green">${stats.p} خطط</span>` : ''}
+            </div>
+            <div class="actions">
+               <button class="icon-btn ib-edit" onclick="event.stopPropagation(); selectMidFromSearch('${i.mainId}', '${i.id}'); openM('editMid','${i.id}')"><i class="fas fa-pen"></i></button>
+               <button class="icon-btn ib-del" onclick="event.stopPropagation(); selectMidFromSearch('${i.mainId}', '${i.id}'); del('mid','${i.id}')"><i class="fas fa-trash"></i></button>
+            </div>
+          </div>
+        `;
+      });
+    }
+  } else {
+    // الوضع الطبيعي بدون بحث
+    if(!sel.main) { 
+      c.innerHTML='<div style="text-align:center; color:#999">اختر منطقة</div>'; 
+      document.getElementById('tMid').innerText = 'القرى / التوابع';
+      return; 
+    }
+    
+    const m = allData.find(a=>a.id===sel.main);
+    document.getElementById('tMid').innerText = m.hasVillages==='yes' ? 'القرى' : 'التوابع المباشرة';
+    
+    let items = [];
+    if(m.hasVillages==='yes' && m.villages) items = Object.keys(m.villages).map(k=>({id:k, ...m.villages[k]}));
+    else if(m.directSubAreas) items = Object.keys(m.directSubAreas).map(k=>({id:k, ...m.directSubAreas[k]}));
+    
+    items.forEach(i => {
+      const isSel = sel.mid === i.id;
+      const stats = getStats(i);
+      const subC = i.subAreas ? Object.keys(i.subAreas).length : 0;
+      
+      c.innerHTML += `
+        <div class="item lvl-2 ${isSel?'selected':''}" onclick="selectMid('${i.id}')">
+          <div class="item-top">
+             <span style="font-weight:bold">${i.name}</span>
+          </div>
+          <div class="stats-container">
+             ${m.hasVillages==='yes' ? `<span class="badge count">${subC} توابع</span>` : ''}
+             ${stats.i > 0 ? `<span class="badge red">${stats.i} مشاكل</span>` : ''}
+             ${stats.p > 0 ? `<span class="badge green">${stats.p} خطط</span>` : ''}
+          </div>
+          <div class="actions">
+             <button class="icon-btn ib-edit" onclick="event.stopPropagation(); openM('editMid','${i.id}')"><i class="fas fa-pen"></i></button>
+             <button class="icon-btn ib-del" onclick="event.stopPropagation(); del('mid','${i.id}')"><i class="fas fa-trash"></i></button>
+          </div>
         </div>
-        <div class="stats-container">
-           ${m.hasVillages==='yes' ? `<span class="badge count">${subC} توابع</span>` : ''}
-           ${stats.i > 0 ? `<span class="badge red">${stats.i} مشاكل</span>` : ''}
-           ${stats.p > 0 ? `<span class="badge green">${stats.p} خطط</span>` : ''}
-        </div>
-        <div class="actions">
-           <button class="icon-btn ib-edit" onclick="event.stopPropagation(); openM('editMid','${i.id}')"><i class="fas fa-pen"></i></button>
-           <button class="icon-btn ib-del" onclick="event.stopPropagation(); del('mid','${i.id}')"><i class="fas fa-trash"></i></button>
-        </div>
-      </div>
-    `;
-  });
+      `;
+    });
+  }
 }
 
 function renderSub() {
   const c = document.getElementById('lSub');
   c.innerHTML = '';
-  if(sel.lvl!=='mid' && sel.lvl!=='sub') { c.innerHTML='<div style="text-align:center; color:#999; padding:10px">اختر قرية</div>'; return; }
   
-  const m = allData.find(a=>a.id===sel.main);
-  if(m.hasVillages!=='yes') { c.innerHTML='<div style="text-align:center; color:#999; padding:10px">لا يوجد (توابع مباشرة)</div>'; return; }
-  
-  const v = m.villages[sel.mid];
-  const items = v.subAreas ? Object.keys(v.subAreas).map(k=>({id:k, ...v.subAreas[k]})) : [];
-  
-  items.forEach(i => {
-    const isSel = sel.sub === i.id;
-    const stats = getStats(i);
-    c.innerHTML += `
-      <div class="item lvl-3 ${isSel?'selected':''}" onclick="selectSub('${i.id}')">
-        <div class="item-top">
-           <span style="font-weight:bold">${i.name}</span>
+  // إذا كان هناك بحث، عرض كل العناصر المطابقة
+  if (searchQuery && searchQuery.trim() !== '') {
+    const normalizedQuery = normalizeForSearch(searchQuery);
+    const allSubItems = [];
+    
+    allData.forEach(m => {
+      if(m.hasVillages==='yes' && m.villages) {
+        Object.keys(m.villages).forEach(vk => {
+          const village = m.villages[vk];
+          if(village.subAreas) {
+            Object.keys(village.subAreas).forEach(sk => {
+              const sub = village.subAreas[sk];
+              if(searchItem(sub, normalizedQuery)) {
+                allSubItems.push({...sub, id: sk, mainId: m.id, villageId: vk});
+              }
+            });
+          }
+        });
+      }
+    });
+    
+    if(allSubItems.length === 0) {
+      c.innerHTML = '<div style="text-align:center; color:#999; padding:20px">لا توجد نتائج للبحث في التوابع</div>';
+    } else {
+      allSubItems.forEach(i => {
+        const isSel = sel.main === i.mainId && sel.mid === i.villageId && sel.sub === i.id;
+        const stats = getStats(i);
+        const nameDisplay = searchQuery ? highlightText(i.name, searchQuery) : i.name;
+        
+        c.innerHTML += `
+          <div class="item lvl-3 ${isSel?'selected':''}" onclick="selectSubFromSearch('${i.mainId}', '${i.villageId}', '${i.id}')">
+            <div class="item-top">
+               <span style="font-weight:bold">${nameDisplay}</span>
+            </div>
+            <div class="stats-container">
+               ${stats.i > 0 ? `<span class="badge red">${stats.i} مشاكل</span>` : ''}
+               ${stats.p > 0 ? `<span class="badge green">${stats.p} خطط</span>` : ''}
+            </div>
+            <div class="actions">
+               <button class="icon-btn ib-edit" onclick="event.stopPropagation(); selectSubFromSearch('${i.mainId}', '${i.villageId}', '${i.id}'); openM('editSub','${i.id}')"><i class="fas fa-pen"></i></button>
+               <button class="icon-btn ib-del" onclick="event.stopPropagation(); selectSubFromSearch('${i.mainId}', '${i.villageId}', '${i.id}'); del('sub','${i.id}')"><i class="fas fa-trash"></i></button>
+            </div>
+          </div>
+        `;
+      });
+    }
+  } else {
+    // الوضع الطبيعي بدون بحث
+    if(sel.lvl!=='mid' && sel.lvl!=='sub') { 
+      c.innerHTML='<div style="text-align:center; color:#999; padding:10px">اختر قرية</div>'; 
+      return; 
+    }
+    
+    const m = allData.find(a=>a.id===sel.main);
+    if(m.hasVillages!=='yes') { 
+      c.innerHTML='<div style="text-align:center; color:#999; padding:10px">لا يوجد (توابع مباشرة)</div>'; 
+      return; 
+    }
+    
+    const v = m.villages[sel.mid];
+    const items = v.subAreas ? Object.keys(v.subAreas).map(k=>({id:k, ...v.subAreas[k]})) : [];
+    
+    items.forEach(i => {
+      const isSel = sel.sub === i.id;
+      const stats = getStats(i);
+      c.innerHTML += `
+        <div class="item lvl-3 ${isSel?'selected':''}" onclick="selectSub('${i.id}')">
+          <div class="item-top">
+             <span style="font-weight:bold">${i.name}</span>
+          </div>
+          <div class="stats-container">
+             ${stats.i > 0 ? `<span class="badge red">${stats.i} مشاكل</span>` : ''}
+             ${stats.p > 0 ? `<span class="badge green">${stats.p} خطط</span>` : ''}
+          </div>
+          <div class="actions">
+             <button class="icon-btn ib-edit" onclick="event.stopPropagation(); openM('editSub','${i.id}')"><i class="fas fa-pen"></i></button>
+             <button class="icon-btn ib-del" onclick="event.stopPropagation(); del('sub','${i.id}')"><i class="fas fa-trash"></i></button>
+          </div>
         </div>
-        <div class="stats-container">
-           ${stats.i > 0 ? `<span class="badge red">${stats.i} مشاكل</span>` : ''}
-           ${stats.p > 0 ? `<span class="badge green">${stats.p} خطط</span>` : ''}
-        </div>
-        <div class="actions">
-           <button class="icon-btn ib-edit" onclick="event.stopPropagation(); openM('editSub','${i.id}')"><i class="fas fa-pen"></i></button>
-           <button class="icon-btn ib-del" onclick="event.stopPropagation(); del('sub','${i.id}')"><i class="fas fa-trash"></i></button>
-        </div>
-      </div>
-    `;
-  });
+      `;
+    });
+  }
 }
 
 function renderDet() {
@@ -695,19 +854,74 @@ function renderDet() {
   if(!obj) return;
   const d = obj.details || {issues:[],plans:[],visits:[]};
   
+  // عرض الزيارات مع التظليل
   (d.visits||[]).forEach((v,i) => {
       let date = v.date || '-';
       let txt = v.desc || v;
-      vDiv.innerHTML += `<div class="det-row"><div><span class="visit-tag">${date}</span> ${txt}</div><i class="fas fa-times" style="color:red;cursor:pointer" onclick="delDet('visit',${i})"></i></div>`;
+      
+      // تطبيق التظليل إذا كان هناك بحث
+      let displayDate = searchQuery ? highlightText(date, searchQuery) : date;
+      let displayTxt = searchQuery ? highlightText(txt, searchQuery) : txt;
+      
+      vDiv.innerHTML += `<div class="det-row"><div><span class="visit-tag">${displayDate}</span> ${displayTxt}</div><i class="fas fa-times" style="color:red;cursor:pointer" onclick="delDet('visit',${i})"></i></div>`;
   });
   
-  (d.issues||[]).forEach((v,i) => iDiv.innerHTML += `<div class="det-row"><div class="text-issue">• ${v}</div><i class="fas fa-times" style="color:red;cursor:pointer" onclick="delDet('issue',${i})"></i></div>`);
-  (d.plans||[]).forEach((v,i) => pDiv.innerHTML += `<div class="det-row"><div class="text-plan">• ${v}</div><i class="fas fa-times" style="color:red;cursor:pointer" onclick="delDet('plan',${i})"></i></div>`);
+  // عرض المشاكل مع التظليل
+  (d.issues||[]).forEach((v,i) => {
+      let displayIssue = searchQuery ? highlightText(v, searchQuery) : v;
+      iDiv.innerHTML += `<div class="det-row"><div class="text-issue">• ${displayIssue}</div><i class="fas fa-times" style="color:red;cursor:pointer" onclick="delDet('issue',${i})"></i></div>`;
+  });
+  
+  // عرض الخطط مع التظليل
+  (d.plans||[]).forEach((v,i) => {
+      let displayPlan = searchQuery ? highlightText(v, searchQuery) : v;
+      pDiv.innerHTML += `<div class="det-row"><div class="text-plan">• ${displayPlan}</div><i class="fas fa-times" style="color:red;cursor:pointer" onclick="delDet('plan',${i})"></i></div>`;
+  });
 }
 
-function selectMain(id) { const m=allData.find(a=>a.id===id); sel={main:id,mid:null,sub:null,lvl:'main',name:m.name}; renderMain(); renderMid(); renderSub(); renderDet(); }
-function selectMid(id) { const m=allData.find(a=>a.id===sel.main); let name=m.hasVillages==='yes'?m.villages[id].name:m.directSubAreas[id].name; sel.mid=id; sel.sub=null; sel.lvl='mid'; sel.name=name; renderMid(); renderSub(); renderDet(); }
-function selectSub(id) { const m=allData.find(a=>a.id===sel.main); const v=m.villages[sel.mid]; sel.sub=id; sel.lvl='sub'; sel.name=v.subAreas[id].name; renderSub(); renderDet(); }
+// دوال الاختيار من البحث
+function selectMidFromSearch(mainId, midId) {
+    selectMain(mainId);
+    setTimeout(() => selectMid(midId), 100);
+}
+
+function selectSubFromSearch(mainId, villageId, subId) {
+    selectMain(mainId);
+    setTimeout(() => selectMid(villageId), 100);
+    setTimeout(() => selectSub(subId), 150);
+}
+
+// دوال الاختيار الأصلية
+function selectMain(id) { 
+    const m=allData.find(a=>a.id===id); 
+    sel={main:id,mid:null,sub:null,lvl:'main',name:m.name}; 
+    renderMain(); 
+    renderMid(); 
+    renderSub(); 
+    renderDet(); 
+}
+
+function selectMid(id) { 
+    const m=allData.find(a=>a.id===sel.main); 
+    let name = m.hasVillages==='yes' ? m.villages[id].name : m.directSubAreas[id].name; 
+    sel.mid=id; 
+    sel.sub=null; 
+    sel.lvl='mid'; 
+    sel.name=name; 
+    renderMid(); 
+    renderSub(); 
+    renderDet(); 
+}
+
+function selectSub(id) { 
+    const m=allData.find(a=>a.id===sel.main); 
+    const v=m.villages[sel.mid]; 
+    sel.sub=id; 
+    sel.lvl='sub'; 
+    sel.name=v.subAreas[id].name; 
+    renderSub(); 
+    renderDet(); 
+}
 
 function getActive() {
     if(!sel.main) return null;
