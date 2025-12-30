@@ -182,7 +182,7 @@
   <div class="login-box animate__animated animate__zoomIn">
     <h2>🔐 نظام إدارة المنزلة</h2>
     <p>يرجى تسجيل الدخول للمتابعة</p>
-    <button class="btn-github" onclick="signInWithGitHub()">
+    <button class="btn-github" id="githubLoginBtn">
       <i class="fab fa-github"></i>
       تسجيل الدخول بـ GitHub
     </button>
@@ -210,7 +210,9 @@
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
   const auth = getAuth(app);
+  const githubProvider = new GithubAuthProvider();
 
+  // تصدير المتغيرات للنطاق العام
   window.db = db; 
   window.ref = ref; 
   window.set = set; 
@@ -219,7 +221,37 @@
   window.push = push; 
   window.update = update;
   window.auth = auth;
+  window.githubProvider = githubProvider;
+  window.signInWithPopup = signInWithPopup;
+  window.signOut = signOut;
   window.currentUser = null;
+
+  // دالة تسجيل الدخول
+  window.signInWithGitHub = function() {
+    signInWithPopup(auth, githubProvider)
+      .then((result) => {
+        const user = result.user;
+        console.log('تم تسجيل الدخول:', user);
+        const credential = GithubAuthProvider.credentialFromResult(result);
+        const token = credential.accessToken;
+        console.log('GitHub Access Token:', token);
+      })
+      .catch((error) => {
+        console.error('خطأ في تسجيل الدخول:', error);
+        alert('فشل تسجيل الدخول: ' + error.message);
+      });
+  };
+
+  // دالة تسجيل الخروج
+  window.signOutUser = function() {
+    if(confirm('هل تريد تسجيل الخروج؟')) {
+      signOut(auth).then(() => {
+        console.log('تم تسجيل الخروج');
+      }).catch((error) => {
+        console.error('خطأ في تسجيل الخروج:', error);
+      });
+    }
+  };
 
   // مراقبة حالة المصادقة
   onAuthStateChanged(auth, (user) => {
@@ -236,7 +268,25 @@
     }
   });
 
-  window.dispatchEvent(new Event('firebaseAuthReady'));
+  // تحديث واجهة المستخدم
+  function updateUserUI(user) {
+    const userSection = document.getElementById('userSection');
+    const photoURL = user.photoURL || 'https://via.placeholder.com/32';
+    const displayName = user.displayName || user.email || 'مستخدم';
+    
+    userSection.innerHTML = `
+      <div class="user-info">
+        <img src="${photoURL}" alt="User" class="user-avatar" />
+        <span style="font-weight:bold; font-size:0.9rem">${displayName}</span>
+      </div>
+      <button class="btn-logout" onclick="signOutUser()">
+        <i class="fas fa-sign-out-alt"></i> خروج
+      </button>
+    `;
+  }
+
+  // ربط زر تسجيل الدخول
+  document.getElementById('githubLoginBtn').addEventListener('click', window.signInWithGitHub);
 </script>
 
 <div class="modal-ov" id="modal">
@@ -335,53 +385,6 @@
 </div>
 
 <script>
-// إنشاء مزود GitHub
-const githubProvider = new window.GithubAuthProvider();
-
-// دالة تسجيل الدخول
-function signInWithGitHub() {
-  window.signInWithPopup(window.auth, githubProvider)
-    .then((result) => {
-      const user = result.user;
-      console.log('تم تسجيل الدخول:', user);
-      const credential = window.GithubAuthProvider.credentialFromResult(result);
-      const token = credential.accessToken;
-      console.log('GitHub Access Token:', token);
-    })
-    .catch((error) => {
-      console.error('خطأ في تسجيل الدخول:', error.message);
-      alert('فشل تسجيل الدخول: ' + error.message);
-    });
-}
-
-// دالة تسجيل الخروج
-function signOutUser() {
-  if(confirm('هل تريد تسجيل الخروج؟')) {
-    window.signOut(window.auth).then(() => {
-      console.log('تم تسجيل الخروج');
-    }).catch((error) => {
-      console.error('خطأ في تسجيل الخروج:', error);
-    });
-  }
-}
-
-// تحديث واجهة المستخدم
-function updateUserUI(user) {
-  const userSection = document.getElementById('userSection');
-  const photoURL = user.photoURL || 'https://via.placeholder.com/32';
-  const displayName = user.displayName || user.email || 'مستخدم';
-  
-  userSection.innerHTML = `
-    <div class="user-info">
-      <img src="${photoURL}" alt="User" class="user-avatar" />
-      <span style="font-weight:bold; font-size:0.9rem">${displayName}</span>
-    </div>
-    <button class="btn-logout" onclick="signOutUser()">
-      <i class="fas fa-sign-out-alt"></i> خروج
-    </button>
-  `;
-}
-
 let allData = [], filtered = [];
 let sel = { main:null, mid:null, sub:null, lvl:'none', name:'' };
 
@@ -429,7 +432,7 @@ function getStats(item) {
     return {i, p};
 }
 
-// محرك البحث المطور - يبحث في كل شيء
+// محرك البحث المطور
 function normalize(text) {
     if(!text) return "";
     return text.toString().toLowerCase().trim()
@@ -446,17 +449,14 @@ function matchesQuery(text, query) {
 function checkDetails(details, query) {
     if(!details) return false;
     
-    // بحث في المشاكل
     if(details.issues && details.issues.some(issue => matchesQuery(issue, query))) {
         return true;
     }
     
-    // بحث في الخطط والمقترحات
     if(details.plans && details.plans.some(plan => matchesQuery(plan, query))) {
         return true;
     }
     
-    // بحث في الزيارات
     if(details.visits) {
         for(let visit of details.visits) {
             if(typeof visit === 'string' && matchesQuery(visit, query)) return true;
@@ -469,12 +469,8 @@ function checkDetails(details, query) {
 }
 
 function searchInItem(item, query) {
-    // بحث في اسم العنصر
     if(matchesQuery(item.name, query)) return true;
-    
-    // بحث في التفاصيل
     if(checkDetails(item.details, query)) return true;
-    
     return false;
 }
 
@@ -487,23 +483,19 @@ function doSearch(q) {
     }
     
     filtered = allData.filter(mainArea => {
-        // 1. بحث في المنطقة الرئيسية نفسها
         if(searchInItem(mainArea, q)) return true;
         
         let found = false;
         
-        // 2. بحث في القرى وتوابعها
         if(mainArea.villages) {
             for(let villageId in mainArea.villages) {
                 let village = mainArea.villages[villageId];
                 
-                // بحث في القرية
                 if(searchInItem(village, q)) {
                     found = true;
                     break;
                 }
                 
-                // بحث في توابع القرية
                 if(village.subAreas) {
                     for(let subId in village.subAreas) {
                         let sub = village.subAreas[subId];
@@ -518,7 +510,6 @@ function doSearch(q) {
             }
         }
         
-        // 3. بحث في التوابع المباشرة
         if(!found && mainArea.directSubAreas) {
             for(let subId in mainArea.directSubAreas) {
                 let sub = mainArea.directSubAreas[subId];
@@ -551,7 +542,6 @@ function startVoice() {
     };
 }
 
-// --- Renders ---
 function renderMain() {
   const c = document.getElementById('lMain');
   c.innerHTML = '';
@@ -671,7 +661,6 @@ function renderDet() {
   (d.plans||[]).forEach((v,i) => pDiv.innerHTML += `<div class="det-row"><div class="text-plan">• ${v}</div><i class="fas fa-times" style="color:red;cursor:pointer" onclick="delDet('plan',${i})"></i></div>`);
 }
 
-// --- Select ---
 function selectMain(id) { const m=allData.find(a=>a.id===id); sel={main:id,mid:null,sub:null,lvl:'main',name:m.name}; renderMain(); renderMid(); renderSub(); renderDet(); }
 function selectMid(id) { const m=allData.find(a=>a.id===sel.main); let name=m.hasVillages==='yes'?m.villages[id].name:m.directSubAreas[id].name; sel.mid=id; sel.sub=null; sel.lvl='mid'; sel.name=name; renderMid(); renderSub(); renderDet(); }
 function selectSub(id) { const m=allData.find(a=>a.id===sel.main); const v=m.villages[sel.mid]; sel.sub=id; sel.lvl='sub'; sel.name=v.subAreas[id].name; renderSub(); renderDet(); }
@@ -691,7 +680,6 @@ function getActive() {
     return null;
 }
 
-// --- CRUD ---
 let actData = {};
 function openM(act, id=null) {
     document.getElementById('modal').style.display='flex';
@@ -770,7 +758,6 @@ function getPath() {
     return p + '/details';
 }
 
-// --- Print & PPT ---
 function printR(mode) {
     const area = document.getElementById('printArea');
     let html = `<div class="p-title"><h2>تقرير المتابعة - المنزلة</h2></div>`;
