@@ -31,6 +31,21 @@
       display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 15px;
     }
     
+    .auth-section {
+      display: flex; align-items: center; gap: 10px; padding: 8px 15px;
+      background: #f1f5f9; border-radius: 50px;
+    }
+    .user-info {
+      display: flex; align-items: center; gap: 8px;
+    }
+    .user-avatar {
+      width: 32px; height: 32px; border-radius: 50%; border: 2px solid var(--primary);
+    }
+    .btn-logout {
+      background: var(--danger); color: white; border: none; padding: 5px 12px;
+      border-radius: 20px; cursor: pointer; font-family: inherit; font-size: 0.85rem;
+    }
+    
     .search-wrapper {
       flex: 1; max-width: 500px; display: flex; align-items: center;
       background: #f1f5f9; border-radius: 50px; padding: 5px 15px;
@@ -113,6 +128,24 @@
     .text-plan { color: #16a34a; font-weight: bold; }
     .visit-tag { background: #e0e7ff; color: var(--primary); font-size: 0.75rem; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
 
+    /* === Login Screen === */
+    .login-screen {
+      position: fixed; inset: 0; background: linear-gradient(135deg, var(--primary), var(--secondary));
+      display: flex; align-items: center; justify-content: center; z-index: 10000;
+    }
+    .login-box {
+      background: white; padding: 40px; border-radius: 20px; text-align: center;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3); max-width: 400px;
+    }
+    .login-box h2 { color: var(--primary); margin-bottom: 10px; }
+    .login-box p { color: #64748b; margin-bottom: 30px; }
+    .btn-github {
+      background: #24292e; color: white; padding: 12px 24px; border: none;
+      border-radius: 8px; cursor: pointer; font-size: 1rem; font-weight: bold;
+      display: inline-flex; align-items: center; gap: 10px; font-family: inherit;
+    }
+    .btn-github:hover { background: #1a1f24; }
+
     /* === Print === */
     #printArea { display: none; }
     @media print {
@@ -145,9 +178,23 @@
 </head>
 <body>
 
+<div id="loginScreen" class="login-screen">
+  <div class="login-box animate__animated animate__zoomIn">
+    <h2>🔐 نظام إدارة المنزلة</h2>
+    <p>يرجى تسجيل الدخول للمتابعة</p>
+    <button class="btn-github" onclick="signInWithGitHub()">
+      <i class="fab fa-github"></i>
+      تسجيل الدخول بـ GitHub
+    </button>
+  </div>
+</div>
+
+<div id="mainApp" style="display:none">
+
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
   import { getDatabase, ref, set, get, remove, push, update } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
+  import { getAuth, GithubAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyDqwVpiB_jrnWek_Pemns7hI7aUgMQOHas",
@@ -162,9 +209,34 @@
 
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
+  const auth = getAuth(app);
 
-  window.db = db; window.ref = ref; window.set = set; window.get = get; window.remove = remove; window.push = push; window.update = update;
-  window.dispatchEvent(new Event('firebaseLoaded'));
+  window.db = db; 
+  window.ref = ref; 
+  window.set = set; 
+  window.get = get; 
+  window.remove = remove; 
+  window.push = push; 
+  window.update = update;
+  window.auth = auth;
+  window.currentUser = null;
+
+  // مراقبة حالة المصادقة
+  onAuthStateChanged(auth, (user) => {
+    if (user) {
+      window.currentUser = user;
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('mainApp').style.display = 'block';
+      updateUserUI(user);
+      window.dispatchEvent(new Event('firebaseLoaded'));
+    } else {
+      window.currentUser = null;
+      document.getElementById('loginScreen').style.display = 'flex';
+      document.getElementById('mainApp').style.display = 'none';
+    }
+  });
+
+  window.dispatchEvent(new Event('firebaseAuthReady'));
 </script>
 
 <div class="modal-ov" id="modal">
@@ -190,6 +262,9 @@
     <h1 style="margin:0; color:#1e293b">نظام إدارة المنزلة</h1>
     <small style="color:#64748b">بحث شامل | طباعة ملونة</small>
   </div>
+  
+  <div class="auth-section" id="userSection"></div>
+  
   <div class="search-wrapper">
     <input id="search" class="search-input" placeholder="بحث شامل (مناطق، قرى، مشاكل، خطط)..." oninput="doSearch(this.value)">
     <i class="fas fa-microphone" style="cursor:pointer; color:var(--primary)" onclick="startVoice()"></i>
@@ -257,7 +332,56 @@
   </div>
 </div>
 
+</div>
+
 <script>
+// إنشاء مزود GitHub
+const githubProvider = new window.GithubAuthProvider();
+
+// دالة تسجيل الدخول
+function signInWithGitHub() {
+  window.signInWithPopup(window.auth, githubProvider)
+    .then((result) => {
+      const user = result.user;
+      console.log('تم تسجيل الدخول:', user);
+      const credential = window.GithubAuthProvider.credentialFromResult(result);
+      const token = credential.accessToken;
+      console.log('GitHub Access Token:', token);
+    })
+    .catch((error) => {
+      console.error('خطأ في تسجيل الدخول:', error.message);
+      alert('فشل تسجيل الدخول: ' + error.message);
+    });
+}
+
+// دالة تسجيل الخروج
+function signOutUser() {
+  if(confirm('هل تريد تسجيل الخروج؟')) {
+    window.signOut(window.auth).then(() => {
+      console.log('تم تسجيل الخروج');
+    }).catch((error) => {
+      console.error('خطأ في تسجيل الخروج:', error);
+    });
+  }
+}
+
+// تحديث واجهة المستخدم
+function updateUserUI(user) {
+  const userSection = document.getElementById('userSection');
+  const photoURL = user.photoURL || 'https://via.placeholder.com/32';
+  const displayName = user.displayName || user.email || 'مستخدم';
+  
+  userSection.innerHTML = `
+    <div class="user-info">
+      <img src="${photoURL}" alt="User" class="user-avatar" />
+      <span style="font-weight:bold; font-size:0.9rem">${displayName}</span>
+    </div>
+    <button class="btn-logout" onclick="signOutUser()">
+      <i class="fas fa-sign-out-alt"></i> خروج
+    </button>
+  `;
+}
+
 let allData = [], filtered = [];
 let sel = { main:null, mid:null, sub:null, lvl:'none', name:'' };
 
@@ -305,66 +429,126 @@ function getStats(item) {
     return {i, p};
 }
 
-// --- SEARCH ENGINE (Updated) ---
+// محرك البحث المطور - يبحث في كل شيء
 function normalize(text) {
     if(!text) return "";
-    return text.toString().trim()
-        .replace(/[أإآ]/g, 'ا') // توحيد الألف
-        .replace(/ة/g, 'ه');    // توحيد التاء المربوطة
+    return text.toString().toLowerCase().trim()
+        .replace(/[أإآ]/g, 'ا')
+        .replace(/ة/g, 'ه')
+        .replace(/ى/g, 'ي');
 }
 
-function checkDet(d, q) {
-    if(!d) return false;
+function matchesQuery(text, query) {
+    if(!text) return false;
+    return normalize(text).includes(query);
+}
+
+function checkDetails(details, query) {
+    if(!details) return false;
+    
     // بحث في المشاكل
-    if(d.issues && d.issues.some(x => normalize(x).includes(q))) return true;
-    // بحث في الخطط
-    if(d.plans && d.plans.some(x => normalize(x).includes(q))) return true;
+    if(details.issues && details.issues.some(issue => matchesQuery(issue, query))) {
+        return true;
+    }
+    
+    // بحث في الخطط والمقترحات
+    if(details.plans && details.plans.some(plan => matchesQuery(plan, query))) {
+        return true;
+    }
+    
+    // بحث في الزيارات
+    if(details.visits) {
+        for(let visit of details.visits) {
+            if(typeof visit === 'string' && matchesQuery(visit, query)) return true;
+            if(visit.desc && matchesQuery(visit.desc, query)) return true;
+            if(visit.date && matchesQuery(visit.date, query)) return true;
+        }
+    }
+    
+    return false;
+}
+
+function searchInItem(item, query) {
+    // بحث في اسم العنصر
+    if(matchesQuery(item.name, query)) return true;
+    
+    // بحث في التفاصيل
+    if(checkDetails(item.details, query)) return true;
+    
     return false;
 }
 
 function doSearch(q) {
     q = normalize(q);
-    if(!q) { filtered=allData; renderMain(); return; }
+    if(!q) { 
+        filtered = allData; 
+        renderMain(); 
+        return; 
+    }
     
-    filtered = allData.filter(m => {
-        // 1. بحث في اسم المنطقة الرئيسية وتفاصيلها
-        if(normalize(m.name).includes(q)) return true;
-        if(checkDet(m.details, q)) return true;
+    filtered = allData.filter(mainArea => {
+        // 1. بحث في المنطقة الرئيسية نفسها
+        if(searchInItem(mainArea, q)) return true;
         
-        let match = false;
+        let found = false;
         
         // 2. بحث في القرى وتوابعها
-        if(m.villages) {
-            Object.values(m.villages).forEach(v => {
-                if(normalize(v.name).includes(q)) match=true;
-                if(checkDet(v.details, q)) match=true;
-                if(v.subAreas) {
-                    Object.values(v.subAreas).forEach(s => {
-                        if(normalize(s.name).includes(q)) match=true;
-                        if(checkDet(s.details, q)) match=true;
-                    });
+        if(mainArea.villages) {
+            for(let villageId in mainArea.villages) {
+                let village = mainArea.villages[villageId];
+                
+                // بحث في القرية
+                if(searchInItem(village, q)) {
+                    found = true;
+                    break;
                 }
-            });
+                
+                // بحث في توابع القرية
+                if(village.subAreas) {
+                    for(let subId in village.subAreas) {
+                        let sub = village.subAreas[subId];
+                        if(searchInItem(sub, q)) {
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+                
+                if(found) break;
+            }
         }
         
         // 3. بحث في التوابع المباشرة
-        if(m.directSubAreas) {
-            Object.values(m.directSubAreas).forEach(s => {
-                if(normalize(s.name).includes(q)) match=true;
-                if(checkDet(s.details, q)) match=true;
-            });
+        if(!found && mainArea.directSubAreas) {
+            for(let subId in mainArea.directSubAreas) {
+                let sub = mainArea.directSubAreas[subId];
+                if(searchInItem(sub, q)) {
+                    found = true;
+                    break;
+                }
+            }
         }
         
-        return match;
+        return found;
     });
+    
     renderMain();
 }
 
 function startVoice() {
     const S = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if(!S) { alert("غير مدعوم"); return; }
-    const r = new S(); r.lang='ar-EG'; r.start();
-    r.onresult = e => { const t = e.results[0][0].transcript; document.getElementById('search').value=t; doSearch(t); };
+    if(!S) { alert("غير مدعوم في هذا المتصفح"); return; }
+    const r = new S(); 
+    r.lang='ar-EG'; 
+    r.start();
+    r.onresult = e => { 
+        const t = e.results[0][0].transcript; 
+        document.getElementById('search').value=t; 
+        doSearch(t); 
+    };
+    r.onerror = e => {
+        console.error('خطأ في التعرف الصوتي:', e);
+    };
 }
 
 // --- Renders ---
