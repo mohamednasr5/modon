@@ -432,74 +432,64 @@ function getStats(item) {
     return {i, p};
 }
 
-// محرك البحث المطور
-function normalize(text) {
+// دالة التطبيع الذكية للبحث
+function normalizeForSearch(text) {
     if(!text) return "";
-    return text.toString().toLowerCase().trim()
-        .replace(/[أإآ]/g, 'ا')
+    
+    return text.toString()
+        .toLowerCase()
+        .trim()
+        // تجاهل الهمزات والأشكال المختلفة للألف
+        .replace(/[أإآٱ]/g, 'ا')
+        // تجاهل التشكيل
+        .replace(/[ًٌٍَُِّْ]/g, '')
+        // تحويل التاء المربوطة إلى هاء
         .replace(/ة/g, 'ه')
-        .replace(/ى/g, 'ي');
+        // تحويل الألف المقصورة إلى ياء
+        .replace(/ى/g, 'ي')
+        // تحويل الياء المنقوطة إلى ياء عادية
+        .replace(/ئ/g, 'ي')
+        // مسح المسافات الزائدة
+        .replace(/\s+/g, ' ')
+        // حذف أي رموز غير عربية أو أرقام (اختياري)
+        .replace(/[^\u0600-\u06FF\s0-9]/g, '');
 }
 
-function matchesQuery(text, query) {
-    if(!text) return false;
-    return normalize(text).includes(query);
-}
-
-function checkDetails(details, query) {
-    if(!details) return false;
-    
-    if(details.issues && details.issues.some(issue => matchesQuery(issue, query))) {
-        return true;
-    }
-    
-    if(details.plans && details.plans.some(plan => matchesQuery(plan, query))) {
-        return true;
-    }
-    
-    if(details.visits) {
-        for(let visit of details.visits) {
-            if(typeof visit === 'string' && matchesQuery(visit, query)) return true;
-            if(visit.desc && matchesQuery(visit.desc, query)) return true;
-            if(visit.date && matchesQuery(visit.date, query)) return true;
-        }
-    }
-    
-    return false;
-}
-
-function searchInItem(item, query) {
-    if(matchesQuery(item.name, query)) return true;
-    if(checkDetails(item.details, query)) return true;
-    return false;
-}
-
+// دالة البحث الذكية
 function doSearch(q) {
-    q = normalize(q);
-    if(!q) { 
+    if(!q || q.trim() === '') { 
         filtered = allData; 
         renderMain(); 
         return; 
     }
     
-    filtered = allData.filter(mainArea => {
-        if(searchInItem(mainArea, q)) return true;
+    const normalizedQuery = normalizeForSearch(q);
+    filtered = [];
+    
+    allData.forEach(mainArea => {
+        // البحث في المنطقة الرئيسية
+        if(searchItem(mainArea, normalizedQuery)) {
+            filtered.push(mainArea);
+            return;
+        }
         
         let found = false;
         
+        // البحث في القرى إذا كانت المنطقة بها قرى
         if(mainArea.villages) {
             for(let villageId in mainArea.villages) {
                 let village = mainArea.villages[villageId];
                 
-                if(searchInItem(village, q)) {
+                if(searchItem(village, normalizedQuery)) {
                     found = true;
                     break;
                 }
                 
+                // البحث في توابع القرية
                 if(village.subAreas) {
                     for(let subId in village.subAreas) {
                         let sub = village.subAreas[subId];
-                        if(searchInItem(sub, q)) {
+                        if(searchItem(sub, normalizedQuery)) {
                             found = true;
                             break;
                         }
@@ -510,20 +500,74 @@ function doSearch(q) {
             }
         }
         
+        // البحث في التوابع المباشرة
         if(!found && mainArea.directSubAreas) {
             for(let subId in mainArea.directSubAreas) {
                 let sub = mainArea.directSubAreas[subId];
-                if(searchInItem(sub, q)) {
+                if(searchItem(sub, normalizedQuery)) {
                     found = true;
                     break;
                 }
             }
         }
         
-        return found;
+        if(found) {
+            filtered.push(mainArea);
+        }
     });
     
     renderMain();
+}
+
+// دالة البحث في عنصر واحد (منطقة/قرية/تابع)
+function searchItem(item, query) {
+    if(!item) return false;
+    
+    // البحث في الاسم
+    if(item.name && normalizeForSearch(item.name).includes(query)) {
+        return true;
+    }
+    
+    // البحث في التفاصيل
+    if(item.details) {
+        // البحث في المشاكل
+        if(item.details.issues && Array.isArray(item.details.issues)) {
+            for(let issue of item.details.issues) {
+                if(issue && normalizeForSearch(issue).includes(query)) {
+                    return true;
+                }
+            }
+        }
+        
+        // البحث في الخطط
+        if(item.details.plans && Array.isArray(item.details.plans)) {
+            for(let plan of item.details.plans) {
+                if(plan && normalizeForSearch(plan).includes(query)) {
+                    return true;
+                }
+            }
+        }
+        
+        // البحث في الزيارات
+        if(item.details.visits && Array.isArray(item.details.visits)) {
+            for(let visit of item.details.visits) {
+                if(typeof visit === 'string') {
+                    if(normalizeForSearch(visit).includes(query)) {
+                        return true;
+                    }
+                } else if(visit) {
+                    if(visit.desc && normalizeForSearch(visit.desc).includes(query)) {
+                        return true;
+                    }
+                    if(visit.date && normalizeForSearch(visit.date).includes(query)) {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+    
+    return false;
 }
 
 function startVoice() {
